@@ -5,8 +5,9 @@ import torch.nn.functional as F
 
 
 class ImageNetHead(nn.Module):
-    def __init__(self, backbone_output_filters, class_number=20):
+    def __init__(self, backbone_output_filters, class_number=20, down_ratio=4):
         super().__init__()
+        self.down_ratio = down_ratio
         self.connection_num = 4  # Increased connections for better feature utilization
         self.class_number = class_number
         self.backbone_output_filters = backbone_output_filters
@@ -53,8 +54,14 @@ class ImageNetHead(nn.Module):
         self.before_sizes = self.conv_bn_relu("before_sizes", self.filters[-1], self.filters[-1])
 
         # Output layers
-        self.hm = self.conv_bn_relu("hm", self.filters[-1], self.class_number, 3, "sigmoid")
-        self.sizes = self.conv_bn_relu("sizes", self.filters[-1], 4, 3, None)
+        self.hm = nn.Sequential(
+            self.conv_bn_relu("hm", self.filters[-1], self.class_number, 3, "sigmoid"),
+            nn.AdaptiveAvgPool2d((64, 64))  # Force output to be 64x64
+        )
+        self.sizes = nn.Sequential(
+            self.conv_bn_relu("sizes", self.filters[-1], 4, 3, None),
+            nn.AdaptiveAvgPool2d((64, 64))  # Force output to be 64x64
+        )
 
     def channel_attention(self, channels):
         return nn.Sequential(
@@ -75,8 +82,7 @@ class ImageNetHead(nn.Module):
             output_num,
             kernel_size=kernel_size,
             stride=1,
-            padding=padding,
-            bias=False  # Disable bias when using BatchNorm
+            padding=padding
         )
 
         # Batch normalization with optimized parameters
@@ -101,7 +107,7 @@ class ImageNetHead(nn.Module):
         for i in range(len(self.filters)):
             # Process current feature level
             x = getattr(self, f"head_{i + 1}")(x)
-            x = F.interpolate(x, scale_factor=2, mode="bilinear", align_corners=True)
+            x = F.interpolate(x, scale_factor=2, mode="bilinear", align_corners=False)
 
             # Add attention-weighted features from backbone
             if i < self.connection_num:

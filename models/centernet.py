@@ -4,6 +4,7 @@ from losses.centernet_ttf import CenternetTTFLoss
 from backbones.centernet_backbone import Backbone
 from heads.centernet_head import Head
 
+
 # todo (AA): move it somewhere
 input_height = input_width = 256
 

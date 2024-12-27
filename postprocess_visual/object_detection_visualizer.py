@@ -6,11 +6,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torchvision.transforms import v2 as transforms
-
 from models.centernet import ModelBuilder
 from postprocess_visual.postprocess import CenternetPostprocess
 from postprocess_visual.visualizer import PASCAL_CLASSES
-
+from models.imagenet_eiuo import ImageNetModel
 
 class ObjectDetectionVisualizer:
     def __init__(
@@ -35,7 +34,7 @@ class ObjectDetectionVisualizer:
         self.confidence_threshold = confidence_threshold
 
         self.checkpoint_path = (
-            "../models/checkpoints/pretrained_weights.pt"
+            "../models/checkpoints/imagenet_pretrained_weights.pt"
             if checkpoint_path is None
             else checkpoint_path
         )
@@ -71,7 +70,7 @@ class ObjectDetectionVisualizer:
                 f"Checkpoint file not found: {self.checkpoint_path}"
             )
 
-        model = ModelBuilder(alpha=0.25).to(self.device)
+        model = ImageNetModel(alpha=1.0).to(self.device)
         model.load_state_dict(
             torch.load(
                 self.checkpoint_path, map_location=self.device, weights_only=True
@@ -158,7 +157,7 @@ class ObjectDetectionVisualizer:
             colored_heatmap = self._get_heatmap_visualization(heatmaps)
             detections = self.postprocessor(pred)
 
-            img_np = np.asarray(orig_img)
+            img_np = np.asarray(orig_img).copy()
 
             pred_boxes, pred_labels, pred_scores = self._process_detections(
                 detections, self.input_height, self.input_width

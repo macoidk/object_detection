@@ -1,26 +1,23 @@
 import argparse
-
 import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
+from torch.utils import data
 
 from callbacks.model_save import SaveBestModelCallback
 from data.dataset import Dataset
-from models.centernet import ModelBuilder, input_height, input_width
-from encoders.centernet_encoder import CenternetEncoder
-
+from models.imagenet_eiuo import ImageNetModel, input_height, input_width
+from encoders.imagenet_encoder import ImageNetEncoder
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-o", "--overfit", action="store_true", help="overfit to 10 images")
 args = parser.parse_args()
 
 overfit = args.overfit
-
-
 image_set = "val" if overfit else "train"
 
 dataset_val = torchvision.datasets.VOCDetection(
-    root="../VOC", year="2007", image_set=image_set, download=False
+    root="../VOC", year="2007", image_set=image_set, download=True
 )
 
 transform = transforms.Compose(
@@ -31,8 +28,12 @@ transform = transforms.Compose(
     ]
 )
 
-encoder = CenternetEncoder(input_height, input_width)
-
+encoder = ImageNetEncoder(
+    img_height=input_height,
+    img_width=input_width,
+    down_ratio=4,
+    n_classes=20
+)
 dataset_val = torchvision.datasets.wrap_dataset_for_transforms_v2(dataset_val)
 torch_dataset = Dataset(dataset=dataset_val, transformation=transform, encoder=encoder)
 
@@ -42,12 +43,10 @@ batch_size = 32
 patience = 7
 min_lr = 1e-3
 
-
 def criteria_satisfied(_, current_epoch):
     if current_epoch >= 10000:
         return True
     return False
-
 
 if overfit:
     subset_len = 10
@@ -62,15 +61,13 @@ if overfit:
             return True
         return False
 
-
 print(f"Selected image_set: {image_set}")
 
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = ModelBuilder(alpha=0.25).to(device)
+model = ImageNetModel(alpha=1.0, class_number=20, down_ratio=4).to(device)
 
 save_callback = SaveBestModelCallback(
-    save_dir="../callbacks/checkpoints",
+    save_dir="../callbacks/imagenet_checkpoints",
     metric_name="loss",
     greater_is_better=False,
     start_saving_threshold=5.0,
@@ -100,9 +97,10 @@ epoch = 1
 get_desired_loss = False
 
 while True:
-    print("EPOCH {}:".format(epoch))
+    print(f"EPOCH {epoch}:")
+    epoch_loss = 0
+    batch_count = 0
 
-    loss_dict = {}
     for _, data in enumerate(batch_generator):
         input_data, gt_data = data
         input_data = input_data.to(device).contiguous()
@@ -111,23 +109,25 @@ while True:
         gt_data.requires_grad = False
 
         loss_dict = model(input_data, gt=gt_data)
-        optimizer.zero_grad()  # compute gradient and do optimize step
+        optimizer.zero_grad()
         loss_dict["loss"].backward()
-
         optimizer.step()
-        loss = loss_dict["loss"]
+
+        epoch_loss += loss_dict["loss"].item()
+        batch_count += 1
 
         save_callback.on_eval_epoch_end(
-            model=model, optimizer=optimizer, epoch=epoch, current_metric=loss.item()
+            model=model, optimizer=optimizer, epoch=epoch, current_metric=loss_dict["loss"].item()
         )
 
-        print(f" loss={loss}, lr={scheduler.get_last_lr()}")
+    # Calculate average epoch loss
+    avg_epoch_loss = epoch_loss / batch_count
+    current_lr = optimizer.param_groups[0]['lr']
 
     if criteria_satisfied(loss_dict["loss"], epoch):
         break
 
-    scheduler.step(loss_dict["loss"])
-
+    scheduler.step(avg_epoch_loss)  # Use average epoch loss for scheduler
     epoch += 1
 
-torch.save(model.state_dict(), "../models/checkpoints/pretrained_weights.pt")
+torch.save(model.state_dict(), "../models/checkpoints/imagenet_pretrained_weights.pt")
