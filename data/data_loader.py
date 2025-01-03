@@ -1,3 +1,4 @@
+#version2
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -51,20 +52,69 @@ class DataLoader(ABC):
 
 
 class PascalVOCDataLoader(DataLoader):
+    def _convert_voc_annotations(self, target):
+        """Converts VOC XML annotations to the required format"""
+        objects = target['annotation']['object']
+        if not isinstance(objects, list):
+            objects = [objects]
+
+        boxes = []
+        labels = []
+
+        for obj in objects:
+            try:
+                bbox = obj['bndbox']
+                x1 = float(bbox['xmin'])
+                y1 = float(bbox['ymin'])
+                x2 = float(bbox['xmax'])
+                y2 = float(bbox['ymax'])
+
+                if x2 <= x1 or y2 <= y1:
+                    continue
+
+                boxes.append([x1, y1, x2, y2])
+                # Можна додати маппінг класів якщо потрібно
+                labels.append(1)  # За замовчуванням всі об'єкти одного класу
+            except (KeyError, ValueError) as e:
+                print(f"Error processing VOC annotation: {e}")
+                continue
+
+        if not boxes:
+            return {
+                'boxes': torch.zeros((0, 4), dtype=torch.float32),
+                'labels': torch.zeros(0, dtype=torch.int64)
+            }
+
+        return {
+            'boxes': torch.tensor(boxes, dtype=torch.float32),
+            'labels': torch.tensor(labels, dtype=torch.int64)
+        }
 
     def load(
-        self,
-        transforms: Optional[Callable] = None,
-        encoders: Optional[Callable] = None,
+            self,
+            transforms: Optional[Transform] = None,
+            encoder: Optional[Callable] = None,
     ):
         is_download = not os.path.exists(self.dataset_path)
-        raw_ds = VOCDetection(
+
+        class VOCDetectionTransformed(VOCDetection):
+            def __init__(self, root, year, image_set, download, transform_fn):
+                super().__init__(root, year, image_set, download)
+                self.transform_fn = transform_fn
+
+            def __getitem__(self, index):
+                img, target = super().__getitem__(index)
+                return img, self.transform_fn(target)
+
+        raw_ds = VOCDetectionTransformed(
             root=self.dataset_path,
             year="2007",
             image_set=self.image_set,
             download=is_download,
+            transform_fn=self._convert_voc_annotations
         )
-        return self._post_load_hook(raw_ds, transforms, encoders)
+
+        return self._post_load_hook(raw_ds, transforms, encoder)
 
 
 class MSCocoDataLoader(DataLoader):
