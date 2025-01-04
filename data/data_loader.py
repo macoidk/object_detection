@@ -1,4 +1,3 @@
-#version2
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -51,7 +50,23 @@ class DataLoader(ABC):
         return Dataset(dataset, transforms, encoder)
 
 
-class PascalVOCDataLoader(DataLoader):
+class PascalVOCDataLoader(DataLoader, VOCDetection):
+    def __init__(self, *, dataset_path: str, image_set: str = None):
+        DataLoader.__init__(self, dataset_path=dataset_path, image_set=image_set)
+        self.transform_fn = self._convert_voc_annotations
+        self.is_download = not os.path.exists(self.dataset_path)
+        VOCDetection.__init__(
+            self,
+            root=self.dataset_path,
+            year="2007",
+            image_set=self.image_set,
+            download=self.is_download
+        )
+
+    def __getitem__(self, index):
+        img, target = VOCDetection.__getitem__(self, index)
+        return img, self.transform_fn(target)
+
     def _convert_voc_annotations(self, target):
         """Converts VOC XML annotations to the required format"""
         objects = target['annotation']['object']
@@ -95,29 +110,10 @@ class PascalVOCDataLoader(DataLoader):
             transforms: Optional[Transform] = None,
             encoder: Optional[Callable] = None,
     ):
-        is_download = not os.path.exists(self.dataset_path)
-
-        class VOCDetectionTransformed(VOCDetection):
-            def __init__(self, root, year, image_set, download, transform_fn):
-                super().__init__(root, year, image_set, download)
-                self.transform_fn = transform_fn
-
-            def __getitem__(self, index):
-                img, target = super().__getitem__(index)
-                return img, self.transform_fn(target)
-
-        raw_ds = VOCDetectionTransformed(
-            root=self.dataset_path,
-            year="2007",
-            image_set=self.image_set,
-            download=is_download,
-            transform_fn=self._convert_voc_annotations
-        )
-
-        return self._post_load_hook(raw_ds, transforms, encoder)
+        return self._post_load_hook(self, transforms, encoder)
 
 
-class MSCocoDataLoader(DataLoader):
+class MSCocoDataLoader(DataLoader, CocoDetection):
     DATASET_URLS = {
         "train": {
             "annotations": "http://images.cocodataset.org/annotations/annotations_trainval2017.zip",
@@ -135,6 +131,39 @@ class MSCocoDataLoader(DataLoader):
             "ann_file": "image_info_test2017.json",
         },
     }
+
+    def __init__(self, *, dataset_path: str, image_set: str = None):
+        DataLoader.__init__(self, dataset_path=dataset_path, image_set=image_set)
+        self.transform_fn = self._convert_coco_annotations
+
+        dataset_config = self.DATASET_URLS[self.image_set]
+        self.ann_folder = Path(self.dataset_path) / "annotations"
+        self.images_folder = Path(self.dataset_path) / f"{self.image_set}2017"
+
+        if not os.path.exists(self.dataset_path):
+            os.makedirs(self.ann_folder, exist_ok=True)
+            os.makedirs(self.images_folder, exist_ok=True)
+
+            file_urls = [
+                dataset_config["annotations"],
+                dataset_config["images"],
+            ]
+            for url in file_urls:
+                filepath = Path(self.dataset_path) / url.split("/")[-1]
+                download_file(url, filepath)
+                unzip_archive(filepath, self.dataset_path)
+
+            print(f"\t\t{self.image_set} dataset is downloaded")
+
+        CocoDetection.__init__(
+            self,
+            root=str(self.images_folder),
+            annFile=str(self.ann_folder / dataset_config["ann_file"])
+        )
+
+    def __getitem__(self, index):
+        img, target = CocoDetection.__getitem__(self, index)
+        return img, self.transform_fn(target)
 
     def _convert_coco_annotations(self, target):
         """Converts COCO annotations to VOC format"""
@@ -191,38 +220,4 @@ class MSCocoDataLoader(DataLoader):
             transforms: Optional[Transform] = None,
             encoder: Optional[Callable] = None,
     ):
-        dataset_config = self.DATASET_URLS[self.image_set]
-        ann_folder = Path(self.dataset_path) / "annotations"
-        images_folder = Path(self.dataset_path) / f"{self.image_set}2017"
-
-        if not os.path.exists(self.dataset_path):
-            os.makedirs(ann_folder, exist_ok=True)
-            os.makedirs(images_folder, exist_ok=True)
-
-            file_urls = [
-                dataset_config["annotations"],
-                dataset_config["images"],
-            ]
-            for url in file_urls:
-                filepath = Path(self.dataset_path) / url.split("/")[-1]
-                download_file(url, filepath)
-                unzip_archive(filepath, self.dataset_path)
-
-            print(f"\t\t{self.image_set} dataset is downloaded")
-
-        class CocoDetectionTransformed(CocoDetection):
-            def __init__(self, root, annFile, transform_fn):
-                super().__init__(root, annFile)
-                self.transform_fn = transform_fn
-
-            def __getitem__(self, index):
-                img, target = super().__getitem__(index)
-                return img, self.transform_fn(target)
-
-        raw_ds = CocoDetectionTransformed(
-            root=str(images_folder),
-            annFile=str(ann_folder / dataset_config["ann_file"]),
-            transform_fn=self._convert_coco_annotations
-        )
-
-        return self._post_load_hook(raw_ds, transforms, encoder)
+        return self._post_load_hook(self, transforms, encoder)
