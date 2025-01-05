@@ -1,6 +1,7 @@
+from collections import OrderedDict
+
 import torch
 import torch.nn as nn
-from collections import OrderedDict
 
 
 class CenterNetGIoULoss(nn.Module):
@@ -15,17 +16,15 @@ class CenterNetGIoULoss(nn.Module):
         self._class_num = class_num
 
         # Loss hyperparameters
-        self.lambda_giou = loss_dict.get("lambda_giou", 2.0)  # Increased weight for GIoU
+        self.lambda_giou = loss_dict.get(
+            "lambda_giou", 2.0
+        )  # Increased weight for GIoU
         self.lambda_cls = loss_dict.get("lambda_cls", 1.0)
         self.alpha = loss_dict.get("alpha", 2.0)  # Focal loss alpha
         self.gamma = loss_dict.get("gamma", 4.0)  # Focal loss gamma
         self.delta = 1e-6  # Numerical stability
 
-        self._losses = OrderedDict({
-            "loss_cls": 0.0,
-            "loss_giou": 0.0,
-            "loss": 0.0
-        })
+        self._losses = OrderedDict({"loss_cls": 0.0, "loss_giou": 0.0, "loss": 0.0})
 
     def get_box_coors(self, y_pred):
         """Convert model outputs to box coordinates."""
@@ -92,8 +91,9 @@ class CenterNetGIoULoss(nn.Module):
         xB = torch.minimum(x2g, x2p)
         yB = torch.minimum(y2g, y2p)
 
-        inter_area = torch.maximum(xB - xA, torch.zeros_like(xA)) * \
-                     torch.maximum(yB - yA, torch.zeros_like(yA))
+        inter_area = torch.maximum(xB - xA, torch.zeros_like(xA)) * torch.maximum(
+            yB - yA, torch.zeros_like(yA)
+        )
 
         # Union
         union_area = area_g + area_p - inter_area
@@ -125,14 +125,12 @@ class CenterNetGIoULoss(nn.Module):
 
         # Classification loss with quality focal loss
         cls_loss = self.quality_focal_loss(
-            y_true[..., :self._class_num],
-            y_pred[..., :self._class_num]
+            y_true[..., : self._class_num], y_pred[..., : self._class_num]
         )
 
         # Box regression loss with GIoU
         giou_loss = self.giou_loss(
-            y_true[..., self._class_num:],
-            y_pred[..., self._class_num:]
+            y_true[..., self._class_num :], y_pred[..., self._class_num :]
         )
 
         # Combine losses

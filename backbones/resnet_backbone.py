@@ -4,7 +4,7 @@ import torchvision.models as models
 from .abstract_backbone import AbstractBackbone
 
 
-def layer_out_filters(resnet_layer: nn.Sequential, alpha: float = 1.0) -> int:
+def count_filters(resnet_layer: nn.Sequential) -> int:
     """Get number of output filters (channels) for resnet layer
     Args:
         resnet_layer (nn.Sequential): resnet model layer (one out of 4 layer1..layer4).
@@ -19,17 +19,21 @@ def layer_out_filters(resnet_layer: nn.Sequential, alpha: float = 1.0) -> int:
         filters = lastblock.conv3.weight.shape[0]
     if lastblock.downsample is not None:
         filters = filters // 2
-    return int(filters * alpha)
+    return filters
 
 
 class ResnetBackbone(AbstractBackbone):
-    def __init__(self, model: models.ResNet, alpha = 1.0,):
+    def __init__(self, model: models.ResNet):
         super().__init__()
         self.model = model
-        self.alpha = alpha
-        self.filters = [int(64 * alpha)] + [
-            layer_out_filters(layer, alpha)
-            for layer in [model.layer1, model.layer2, model.layer3, model.layer4]
+        self.filters = [64] + [
+            count_filters(layer)
+            for layer in [
+                model.layer1,
+                model.layer2,
+                model.layer3,
+                model.layer4,
+            ]
         ]
 
     def forward(self, x):
@@ -49,9 +53,3 @@ class ResnetBackbone(AbstractBackbone):
         x = m.layer4(x)  # stride 2, effective 32
         out_stride_32 = x
         return out_stride_2, out_stride_4, out_stride_8, out_stride_16, out_stride_32
-
-
-def create_resnet_backbone(name, alpha=1.0, weights=None):
-    assert name.startswith("resnet")
-    model = models.get_model(name, weights=weights)
-    return ResnetBackbone(model, alpha)

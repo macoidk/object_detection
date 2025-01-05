@@ -6,9 +6,8 @@ import torchvision.transforms.v2 as transforms
 
 from callbacks.model_save import SaveBestModelCallback
 from data.dataset import Dataset
-from models.centernet import ModelBuilder, input_height, input_width
 from encoders.centernet_encoder import CenternetEncoder
-
+from models.centernet import ModelBuilder, input_height, input_width
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-o", "--overfit", action="store_true", help="overfit to 10 images")

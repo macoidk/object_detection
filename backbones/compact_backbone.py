@@ -1,20 +1,24 @@
 from collections import OrderedDict
-import torch.nn as nn
+
 import numpy as np
+import torch.nn as nn
+
 
 class CompactBackbone(nn.Module):
-    def __init__(self, alpha=0.75):  # Використовуємо alpha для балансу швидкість/точність
+    def __init__(self, alpha=0.75):
         super().__init__()
         self.block_num = 1
         self.alpha = alpha
 
-        # Оптимізовані фільтри для мобільних пристроїв
-        self.filters = np.array([
-            32 * self.alpha,
-            64 * self.alpha,
-            128 * self.alpha,
-            256 * self.alpha,
-            512 * self.alpha]).astype("int")
+        self.filters = np.array(
+            [
+                32 * self.alpha,
+                64 * self.alpha,
+                128 * self.alpha,
+                256 * self.alpha,
+                512 * self.alpha,
+            ]
+        ).astype("int")
         s = self.filters
 
         self.layer1 = self.conv_dw_sep(3, s[0], stride=2)  # stride 2
@@ -33,16 +37,17 @@ class CompactBackbone(nn.Module):
 
     def conv_dw_sep(self, in_ch, out_ch, stride=1):
         block = OrderedDict()
-        block[f'dw_{self.block_num}'] = nn.Conv2d(
-            in_ch, in_ch, kernel_size=3, stride=stride, padding=1, groups=in_ch)
-        block[f'bn1_{self.block_num}'] = nn.BatchNorm2d(in_ch)
-        block[f'relu1_{self.block_num}'] = nn.ReLU6(inplace=True)
+        block[f"dw_{self.block_num}"] = nn.Conv2d(
+            in_ch, in_ch, kernel_size=3, stride=stride, padding=1, groups=in_ch
+        )
+        block[f"bn1_{self.block_num}"] = nn.BatchNorm2d(in_ch)
+        block[f"relu1_{self.block_num}"] = nn.ReLU6(inplace=True)
 
-
-        block[f'pw_{self.block_num}'] = nn.Conv2d(
-            in_ch, out_ch, kernel_size=1, stride=1)
-        block[f'bn2_{self.block_num}'] = nn.BatchNorm2d(out_ch)
-        block[f'relu2_{self.block_num}'] = nn.ReLU6(inplace=True)
+        block[f"pw_{self.block_num}"] = nn.Conv2d(
+            in_ch, out_ch, kernel_size=1, stride=1
+        )
+        block[f"bn2_{self.block_num}"] = nn.BatchNorm2d(out_ch)
+        block[f"relu2_{self.block_num}"] = nn.ReLU6(inplace=True)
 
         self.block_num += 1
         return nn.Sequential(block)

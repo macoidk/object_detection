@@ -9,8 +9,8 @@ from torchvision.datasets import CocoDetection, VisionDataset, VOCDetection
 from torchvision.transforms.v2 import Transform
 
 from data.dataset import Dataset
-from encoders.centernet_encoder import CenternetEncoder
 from models.centernet import input_height, input_width
+from encoders.centernet_encoder import CenternetEncoder
 from utils.io_utils import download_file, unzip_archive
 
 
@@ -60,7 +60,7 @@ class PascalVOCDataLoader(DataLoader, VOCDetection):
             root=self.dataset_path,
             year="2007",
             image_set=self.image_set,
-            download=self.is_download,
+            download=self.is_download
         )
 
     def __getitem__(self, index):
@@ -69,7 +69,7 @@ class PascalVOCDataLoader(DataLoader, VOCDetection):
 
     def _convert_voc_annotations(self, target):
         """Converts VOC XML annotations to the required format"""
-        objects = target["annotation"]["object"]
+        objects = target['annotation']['object']
         if not isinstance(objects, list):
             objects = [objects]
 
@@ -78,11 +78,11 @@ class PascalVOCDataLoader(DataLoader, VOCDetection):
 
         for obj in objects:
             try:
-                bbox = obj["bndbox"]
-                x1 = float(bbox["xmin"])
-                y1 = float(bbox["ymin"])
-                x2 = float(bbox["xmax"])
-                y2 = float(bbox["ymax"])
+                bbox = obj['bndbox']
+                x1 = float(bbox['xmin'])
+                y1 = float(bbox['ymin'])
+                x2 = float(bbox['xmax'])
+                y2 = float(bbox['ymax'])
 
                 if x2 <= x1 or y2 <= y1:
                     continue
@@ -96,19 +96,19 @@ class PascalVOCDataLoader(DataLoader, VOCDetection):
 
         if not boxes:
             return {
-                "boxes": torch.zeros((0, 4), dtype=torch.float32),
-                "labels": torch.zeros(0, dtype=torch.int64),
+                'boxes': torch.zeros((0, 4), dtype=torch.float32),
+                'labels': torch.zeros(0, dtype=torch.int64)
             }
 
         return {
-            "boxes": torch.tensor(boxes, dtype=torch.float32),
-            "labels": torch.tensor(labels, dtype=torch.int64),
+            'boxes': torch.tensor(boxes, dtype=torch.float32),
+            'labels': torch.tensor(labels, dtype=torch.int64)
         }
 
     def load(
-        self,
-        transforms: Optional[Transform] = None,
-        encoder: Optional[Callable] = None,
+            self,
+            transforms: Optional[Transform] = None,
+            encoder: Optional[Callable] = None,
     ):
         return self._post_load_hook(self, transforms, encoder)
 
@@ -158,7 +158,7 @@ class MSCocoDataLoader(DataLoader, CocoDetection):
         CocoDetection.__init__(
             self,
             root=str(self.images_folder),
-            annFile=str(self.ann_folder / dataset_config["ann_file"]),
+            annFile=str(self.ann_folder / dataset_config["ann_file"])
         )
 
     def __getitem__(self, index):
@@ -169,8 +169,8 @@ class MSCocoDataLoader(DataLoader, CocoDetection):
         """Converts COCO annotations to VOC format"""
         if not isinstance(target, list):
             return {
-                "boxes": torch.zeros((0, 4), dtype=torch.float32),
-                "labels": torch.zeros(0, dtype=torch.int64),
+                'boxes': torch.zeros((0, 4), dtype=torch.float32),
+                'labels': torch.zeros(0, dtype=torch.int64)
             }
 
         boxes = []
@@ -180,8 +180,8 @@ class MSCocoDataLoader(DataLoader, CocoDetection):
             if not isinstance(annotation, dict):
                 continue
 
-            bbox = annotation.get("bbox")
-            category_id = annotation.get("category_id")
+            bbox = annotation.get('bbox')
+            category_id = annotation.get('category_id')
 
             if bbox is None or category_id is None:
                 continue
@@ -206,18 +206,18 @@ class MSCocoDataLoader(DataLoader, CocoDetection):
 
         if not boxes:
             return {
-                "boxes": torch.zeros((0, 4), dtype=torch.float32),
-                "labels": torch.zeros(0, dtype=torch.int64),
+                'boxes': torch.zeros((0, 4), dtype=torch.float32),
+                'labels': torch.zeros(0, dtype=torch.int64)
             }
 
         return {
-            "boxes": torch.tensor(boxes, dtype=torch.float32),
-            "labels": torch.tensor(labels, dtype=torch.int64),
+            'boxes': torch.tensor(boxes, dtype=torch.float32),
+            'labels': torch.tensor(labels, dtype=torch.int64)
         }
 
     def load(
-        self,
-        transforms: Optional[Transform] = None,
-        encoder: Optional[Callable] = None,
+            self,
+            transforms: Optional[Transform] = None,
+            encoder: Optional[Callable] = None,
     ):
         return self._post_load_hook(self, transforms, encoder)

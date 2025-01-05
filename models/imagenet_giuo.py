@@ -1,8 +1,8 @@
 import torch.nn as nn
 
-from losses.giou_loss import CenterNetGIoULoss
 from backbones.imagenet_backbone import ImageNetBackbone
 from heads.imagenet_head import ImageNetHead
+from losses.giou_loss import CenterNetGIoULoss
 
 # Константи для розмірів вхідного зображення
 input_height = input_width = 256
@@ -18,8 +18,7 @@ class ImageNetModel(nn.Module):
         self.backbone = ImageNetBackbone(alpha)
 
         self.head = ImageNetHead(
-            backbone_output_filters=self.backbone.filters,
-            class_number=class_number
+            backbone_output_filters=self.backbone.filters, class_number=class_number
         )
 
         self.loss = CenterNetGIoULoss(
@@ -31,8 +30,8 @@ class ImageNetModel(nn.Module):
                 "lambda_giou": 2.0,  # Вага для GIoU loss
                 "lambda_cls": 1.0,
                 "alpha": 2.0,  # Параметр focal loss
-                "gamma": 4.0  # Параметр focal loss
-            }
+                "gamma": 4.0,  # Параметр focal loss
+            },
         )
 
     def forward(self, x, gt=None):

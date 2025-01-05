@@ -1,9 +1,9 @@
 import torch.nn as nn
 
-from losses.eiou_loss import CenterNetEIoULoss
 from backbones.imagenet_backbone import ImageNetBackbone
 from heads.imagenet_head import ImageNetHead
 from losses.centernet_ttf import CenternetTTFLoss
+from losses.eiou_loss import CenterNetEIoULoss
 
 # Constants for input dimensions
 input_height = input_width = 256
@@ -23,11 +23,10 @@ class ImageNetModel(nn.Module):
         self.head = ImageNetHead(
             backbone_output_filters=self.backbone.filters,
             class_number=class_number,
-            down_ratio=down_ratio
+            down_ratio=down_ratio,
         )
 
         self.loss = CenternetTTFLoss(
-
             class_number,
             4,
             input_height // 4,

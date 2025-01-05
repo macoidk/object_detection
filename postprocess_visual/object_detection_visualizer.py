@@ -4,6 +4,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+
 from postprocess_visual.postprocess import CenternetPostprocess
 from postprocess_visual.visualizer import PASCAL_CLASSES
 
@@ -21,9 +22,7 @@ class ObjectDetectionVisualizer:
         self.logger = logging.getLogger(__name__)
 
         self.dataset = dataset
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.logger.info(f"Using device: {self.device}")
 
         self.input_height = input_height

@@ -1,6 +1,7 @@
 from collections import OrderedDict
-import torch.nn as nn
+
 import numpy as np
+import torch.nn as nn
 
 
 class ImageNetBackbone(nn.Module):
@@ -10,13 +11,15 @@ class ImageNetBackbone(nn.Module):
         self.alpha = alpha
 
         # Define base filters with alpha scaling
-        self.filters = np.array([
-            96 * self.alpha,  # Increased initial filters
-            192 * self.alpha,
-            384 * self.alpha,
-            768 * self.alpha,
-            1024 * self.alpha  # Deeper feature representation
-        ]).astype('int')
+        self.filters = np.array(
+            [
+                96 * self.alpha,  # Increased initial filters
+                192 * self.alpha,
+                384 * self.alpha,
+                768 * self.alpha,
+                1024 * self.alpha,  # Deeper feature representation
+            ]
+        ).astype("int")
 
         s = self.filters
         # Initial conv with larger kernel
@@ -42,24 +45,20 @@ class ImageNetBackbone(nn.Module):
         self.layer12 = self.conv_bn_relu(s[4], s[4], False)
         self.layer13 = self.conv_bn_relu(s[4], s[4], True)  # stride 32
 
-    def conv_bn_relu(self, input_num, output_num, max_pool=False, kernel_size=3, padding=1):
+    def conv_bn_relu(
+        self, input_num, output_num, max_pool=False, kernel_size=3, padding=1
+    ):
         block = OrderedDict()
-        block[f'conv_{self.block_num}'] = nn.Conv2d(
-            input_num,
-            output_num,
-            kernel_size=kernel_size,
-            stride=1,
-            padding=padding
+        block[f"conv_{self.block_num}"] = nn.Conv2d(
+            input_num, output_num, kernel_size=kernel_size, stride=1, padding=padding
         )
-        block[f'bn_{self.block_num}'] = nn.BatchNorm2d(
-            output_num,
-            eps=1e-3,
-            momentum=0.01
+        block[f"bn_{self.block_num}"] = nn.BatchNorm2d(
+            output_num, eps=1e-3, momentum=0.01
         )
-        block[f'relu_{self.block_num}'] = nn.ReLU()
+        block[f"relu_{self.block_num}"] = nn.ReLU()
 
         if max_pool:
-            block[f'pool_{self.block_num}'] = nn.MaxPool2d(kernel_size=2, stride=2)
+            block[f"pool_{self.block_num}"] = nn.MaxPool2d(kernel_size=2, stride=2)
 
         self.block_num += 1
         return nn.Sequential(block)

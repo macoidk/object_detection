@@ -1,18 +1,19 @@
 from collections import OrderedDict
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 
 
 class ConvNeXtBlock(nn.Module):
-    def __init__(self, dim, drop_path=0.):
+    def __init__(self, dim, drop_path=0.0):
         super().__init__()
         self.dwconv = nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim)
         self.norm = nn.LayerNorm(dim, eps=1e-6)
         self.pwconv1 = nn.Linear(dim, 4 * dim)
         self.act = nn.GELU()
         self.pwconv2 = nn.Linear(4 * dim, dim)
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
         input = x
@@ -33,20 +34,22 @@ class ConvNeXtLargeBackbone(nn.Module):
         self.alpha = alpha
 
         # ConvNeXt-Large specific dimensions
-        self.filters = np.array([
-            192 * self.alpha,
-            384 * self.alpha,
-            768 * self.alpha,
-            1536 * self.alpha,
-            1536 * self.alpha
-        ]).astype('int')
+        self.filters = np.array(
+            [
+                192 * self.alpha,
+                384 * self.alpha,
+                768 * self.alpha,
+                1536 * self.alpha,
+                1536 * self.alpha,
+            ]
+        ).astype("int")
 
         s = self.filters
 
         # Stem stage
         self.stem = nn.Sequential(
             nn.Conv2d(3, s[0], kernel_size=4, stride=4),
-            nn.LayerNorm(s[0], eps=1e-6, data_format="channels_first")
+            nn.LayerNorm(s[0], eps=1e-6, data_format="channels_first"),
         )
 
         # Stage 1
@@ -107,9 +110,9 @@ class DropPath(nn.Module):
         self.drop_prob = drop_prob
 
     def forward(self, x):
-        if self.drop_prob == 0. or not self.training:
+        if self.drop_prob == 0.0 or not self.training:
             return x
-        keep_prob = 1 - self.drop_prob # Calculate the probability of saving
+        keep_prob = 1 - self.drop_prob  # Calculate the probability of saving
 
         # Create a mask of the same size as the batch
         # shape[0] - the size of the batch, other dimensions = 1

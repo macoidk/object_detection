@@ -1,4 +1,5 @@
 import argparse
+
 import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
@@ -6,8 +7,8 @@ from torch.utils import data
 
 from callbacks.model_save import SaveBestModelCallback
 from data.dataset import Dataset
-from models.imagenet import ImageNetModel, input_height, input_width
 from encoders.imagenet_encoder import ImageNetEncoder
+from models.imagenet import ImageNetModel, input_height, input_width
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-o", "--overfit", action="store_true", help="overfit to 10 images")
@@ -29,10 +30,7 @@ transform = transforms.Compose(
 )
 
 encoder = ImageNetEncoder(
-    img_height=input_height,
-    img_width=input_width,
-    down_ratio=4,
-    n_classes=20
+    img_height=input_height, img_width=input_width, down_ratio=4, n_classes=20
 )
 dataset_val = torchvision.datasets.wrap_dataset_for_transforms_v2(dataset_val)
 torch_dataset = Dataset(dataset=dataset_val, transformation=transform, encoder=encoder)
@@ -43,10 +41,12 @@ batch_size = 32
 patience = 7
 min_lr = 1e-3
 
+
 def criteria_satisfied(_, current_epoch):
     if current_epoch >= 10000:
         return True
     return False
+
 
 if overfit:
     subset_len = 10
@@ -60,6 +60,7 @@ if overfit:
         if current_loss < 1.0:
             return True
         return False
+
 
 print(f"Selected image_set: {image_set}")
 
@@ -117,12 +118,15 @@ while True:
         batch_count += 1
 
         save_callback.on_eval_epoch_end(
-            model=model, optimizer=optimizer, epoch=epoch, current_metric=loss_dict["loss"].item()
+            model=model,
+            optimizer=optimizer,
+            epoch=epoch,
+            current_metric=loss_dict["loss"].item(),
         )
 
     # Calculate average epoch loss
     avg_epoch_loss = epoch_loss / batch_count
-    current_lr = optimizer.param_groups[0]['lr']
+    current_lr = optimizer.param_groups[0]["lr"]
 
     if criteria_satisfied(loss_dict["loss"], epoch):
         break

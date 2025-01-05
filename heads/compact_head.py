@@ -1,4 +1,5 @@
 from collections import OrderedDict
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -23,7 +24,7 @@ class CompactHead(nn.Module):
             setattr(
                 self,
                 name,
-                self.mobile_conv_block(name, head_filters[i], head_filters[i + 1])
+                self.mobile_conv_block(name, head_filters[i], head_filters[i + 1]),
             )
 
             # З'єднання з backbone
@@ -33,33 +34,32 @@ class CompactHead(nn.Module):
                     self,
                     name,
                     self.mobile_conv_block(
-                        name,
-                        self.backbone_output_filters[-2 - i],
-                        self.filters[i],
-                        1
-                    )
+                        name, self.backbone_output_filters[-2 - i], self.filters[i], 1
+                    ),
                 )
 
                 # Полегшений механізм уваги
                 name = f"attention_{i}"
-                setattr(
-                    self,
-                    name,
-                    self.light_attention(self.filters[i])
-                )
+                setattr(self, name, self.light_attention(self.filters[i]))
 
         # Попередня обробка виходів
-        self.before_hm = self.mobile_conv_block("before_hm", self.filters[-1], self.filters[-1])
-        self.before_sizes = self.mobile_conv_block("before_sizes", self.filters[-1], self.filters[-1])
+        self.before_hm = self.mobile_conv_block(
+            "before_hm", self.filters[-1], self.filters[-1]
+        )
+        self.before_sizes = self.mobile_conv_block(
+            "before_sizes", self.filters[-1], self.filters[-1]
+        )
 
         # Вихідні шари
         self.hm = nn.Sequential(
-            self.mobile_conv_block("hm", self.filters[-1], self.class_number, 3, "sigmoid"),
-            nn.AdaptiveAvgPool2d((64, 64))
+            self.mobile_conv_block(
+                "hm", self.filters[-1], self.class_number, 3, "sigmoid"
+            ),
+            nn.AdaptiveAvgPool2d((64, 64)),
         )
         self.sizes = nn.Sequential(
             self.mobile_conv_block("sizes", self.filters[-1], 4, 3, None),
-            nn.AdaptiveAvgPool2d((64, 64))
+            nn.AdaptiveAvgPool2d((64, 64)),
         )
 
     def light_attention(self, channels):
@@ -69,10 +69,12 @@ class CompactHead(nn.Module):
             nn.Conv2d(channels, max(8, channels // 16), 1),
             nn.ReLU6(inplace=True),
             nn.Conv2d(max(8, channels // 16), channels, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
-    def mobile_conv_block(self, name, input_num, output_num, kernel_size=3, activation="relu"):
+    def mobile_conv_block(
+        self, name, input_num, output_num, kernel_size=3, activation="relu"
+    ):
         """Оптимізований для мобільних пристроїв conv block"""
         block = OrderedDict()
         padding = 1 if kernel_size == 3 else 0
@@ -84,7 +86,7 @@ class CompactHead(nn.Module):
                 output_num,
                 kernel_size=kernel_size,
                 stride=1,
-                padding=padding
+                padding=padding,
             )
         else:
             # Depthwise separable згортка для 3x3
@@ -94,20 +96,12 @@ class CompactHead(nn.Module):
                 kernel_size=kernel_size,
                 stride=1,
                 padding=padding,
-                groups=input_num
+                groups=input_num,
             )
-            block[f"conv_pw_{name}"] = nn.Conv2d(
-                input_num,
-                output_num,
-                kernel_size=1
-            )
+            block[f"conv_pw_{name}"] = nn.Conv2d(input_num, output_num, kernel_size=1)
 
         # Оптимізована batch normalization
-        block[f"bn_{name}"] = nn.BatchNorm2d(
-            output_num,
-            eps=1e-3,
-            momentum=0.01
-        )
+        block[f"bn_{name}"] = nn.BatchNorm2d(output_num, eps=1e-3, momentum=0.01)
 
         # Активації
         if activation == "relu":

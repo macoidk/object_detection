@@ -1,4 +1,5 @@
 from collections import OrderedDict
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -20,9 +21,7 @@ class ConvNeXtHead(nn.Module):
             # Main feature processing path
             name = f"head_{i + 1}"
             setattr(
-                self,
-                name,
-                self.conv_next_block(head_filters[i], head_filters[i + 1])
+                self, name, self.conv_next_block(head_filters[i], head_filters[i + 1])
             )
 
             # Backbone connections
@@ -32,25 +31,22 @@ class ConvNeXtHead(nn.Module):
                     self,
                     name,
                     self.conv_next_block(
-                        self.backbone_output_filters[-2 - i],
-                        self.filters[i]
-                    )
+                        self.backbone_output_filters[-2 - i], self.filters[i]
+                    ),
                 )
 
                 # Feature refinement
                 name = f"refine_{i}"
-                setattr(
-                    self,
-                    name,
-                    self.feature_refinement(self.filters[i])
-                )
+                setattr(self, name, self.feature_refinement(self.filters[i]))
 
         # Output processing blocks
         self.before_hm = self.conv_next_block(self.filters[-1], self.filters[-1])
         self.before_sizes = self.conv_next_block(self.filters[-1], self.filters[-1])
 
         # Final output layers
-        self.hm = self.conv_bn_relu("hm", self.filters[-1], self.class_number, 3, "sigmoid")
+        self.hm = self.conv_bn_relu(
+            "hm", self.filters[-1], self.class_number, 3, "sigmoid"
+        )
         self.sizes = self.conv_bn_relu("sizes", self.filters[-1], 4, 3, None)
 
     def conv_next_block(self, dim_in, dim_out):
@@ -61,7 +57,7 @@ class ConvNeXtHead(nn.Module):
             # Pointwise convs
             nn.Conv2d(dim_in, dim_out, 1),
             nn.GELU(),
-            nn.BatchNorm2d(dim_out)
+            nn.BatchNorm2d(dim_out),
         )
 
     def feature_refinement(self, channels):
@@ -70,10 +66,12 @@ class ConvNeXtHead(nn.Module):
             nn.Conv2d(channels, channels // 4, 1),
             nn.GELU(),
             nn.Conv2d(channels // 4, channels, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
-    def conv_bn_relu(self, name, input_num, output_num, kernel_size=3, activation="relu"):
+    def conv_bn_relu(
+        self, name, input_num, output_num, kernel_size=3, activation="relu"
+    ):
         block = OrderedDict()
         padding = 1 if kernel_size == 3 else 0
 
@@ -83,17 +81,15 @@ class ConvNeXtHead(nn.Module):
             kernel_size=kernel_size,
             stride=1,
             padding=padding,
-            bias=False
+            bias=False,
         )
 
-        block[f"bn_{name}"] = nn.BatchNorm2d(
-            output_num,
-            eps=1e-3,
-            momentum=0.01
-        )
+        block[f"bn_{name}"] = nn.BatchNorm2d(output_num, eps=1e-3, momentum=0.01)
 
         if activation == "relu":
-            block[f"relu_{name}"] = nn.GELU()  # Using GELU for consistency with ConvNeXt
+            block[f"relu_{name}"] = (
+                nn.GELU()
+            )  # Using GELU for consistency with ConvNeXt
         elif activation == "sigmoid":
             block[f"sigmoid_{name}"] = nn.Sigmoid()
 

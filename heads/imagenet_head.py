@@ -1,4 +1,5 @@
 from collections import OrderedDict
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -23,7 +24,7 @@ class ImageNetHead(nn.Module):
             setattr(
                 self,
                 name,
-                self.conv_bn_relu(name, head_filters[i], head_filters[i + 1])
+                self.conv_bn_relu(name, head_filters[i], head_filters[i + 1]),
             )
 
             # Backbone connections with attention mechanism
@@ -34,33 +35,30 @@ class ImageNetHead(nn.Module):
                     self,
                     name,
                     self.conv_bn_relu(
-                        name,
-                        self.backbone_output_filters[-2 - i],
-                        self.filters[i],
-                        1
-                    )
+                        name, self.backbone_output_filters[-2 - i], self.filters[i], 1
+                    ),
                 )
 
                 # Channel attention
                 name = f"attention_{i}"
-                setattr(
-                    self,
-                    name,
-                    self.channel_attention(self.filters[i])
-                )
+                setattr(self, name, self.channel_attention(self.filters[i]))
 
         # Pre-output processing
-        self.before_hm = self.conv_bn_relu("before_hm", self.filters[-1], self.filters[-1])
-        self.before_sizes = self.conv_bn_relu("before_sizes", self.filters[-1], self.filters[-1])
+        self.before_hm = self.conv_bn_relu(
+            "before_hm", self.filters[-1], self.filters[-1]
+        )
+        self.before_sizes = self.conv_bn_relu(
+            "before_sizes", self.filters[-1], self.filters[-1]
+        )
 
         # Output layers
         self.hm = nn.Sequential(
             self.conv_bn_relu("hm", self.filters[-1], self.class_number, 3, "sigmoid"),
-            nn.AdaptiveAvgPool2d((64, 64))  # Force output to be 64x64
+            nn.AdaptiveAvgPool2d((64, 64)),  # Force output to be 64x64
         )
         self.sizes = nn.Sequential(
             self.conv_bn_relu("sizes", self.filters[-1], 4, 3, None),
-            nn.AdaptiveAvgPool2d((64, 64))  # Force output to be 64x64
+            nn.AdaptiveAvgPool2d((64, 64)),  # Force output to be 64x64
         )
 
     def channel_attention(self, channels):
@@ -69,28 +67,22 @@ class ImageNetHead(nn.Module):
             nn.Conv2d(channels, channels // 16, 1),
             nn.ReLU(),
             nn.Conv2d(channels // 16, channels, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
-    def conv_bn_relu(self, name, input_num, output_num, kernel_size=3, activation="relu"):
+    def conv_bn_relu(
+        self, name, input_num, output_num, kernel_size=3, activation="relu"
+    ):
         block = OrderedDict()
         padding = 1 if kernel_size == 3 else 0
 
         # Convolution with improved initialization
         block[f"conv_{name}"] = nn.Conv2d(
-            input_num,
-            output_num,
-            kernel_size=kernel_size,
-            stride=1,
-            padding=padding
+            input_num, output_num, kernel_size=kernel_size, stride=1, padding=padding
         )
 
         # Batch normalization with optimized parameters
-        block[f"bn_{name}"] = nn.BatchNorm2d(
-            output_num,
-            eps=1e-3,
-            momentum=0.01
-        )
+        block[f"bn_{name}"] = nn.BatchNorm2d(output_num, eps=1e-3, momentum=0.01)
 
         # Activation functions
         if activation == "relu":
