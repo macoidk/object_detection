@@ -26,6 +26,7 @@ class ResnetBackbone(AbstractBackbone):
     def __init__(self, model: models.ResNet):
         super().__init__()
         self.model = model
+
         self.filters = [64] + [
             count_filters(layer)
             for layer in [
@@ -53,3 +54,8 @@ class ResnetBackbone(AbstractBackbone):
         x = m.layer4(x)  # stride 2, effective 32
         out_stride_32 = x
         return out_stride_2, out_stride_4, out_stride_8, out_stride_16, out_stride_32
+
+def create_resnet_backbone(name, weights=None):
+    assert name.startswith("resnet")
+    model = models.get_model(name, weights=weights)
+    return ResnetBackbone(model)

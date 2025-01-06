@@ -10,9 +10,9 @@ from torchvision.transforms.v2 import Transform
 
 from data.dataset import Dataset
 from encoders.centernet_encoder import CenternetEncoder
-from models.centernet import input_height, input_width
 from utils.io_utils import download_file, unzip_archive
 
+input_height = input_width = 256
 
 class DataLoader(ABC):
     def __init__(self, *, dataset_path: str, image_set: str = None):

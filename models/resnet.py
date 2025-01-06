@@ -4,7 +4,6 @@ import backbones.resnet_backbone as rb
 from heads.centernet_head import Head
 from losses.centernet_ttf import CenternetTTFLoss
 
-# todo (AA): move it somewhere
 input_height = input_width = 256
 
 
@@ -13,10 +12,10 @@ class ResnetModel(nn.Module):
     To connect head with backbone
     """
 
-    def __init__(self, class_number=20, backbone_name="resnet18", alpha=1.0):
+    def __init__(self, class_number=20, backbone_name="resnet18"):
         super().__init__()
         self.class_number = class_number
-        self.backbone = rb.create_resnet_backbone(name=backbone_name, alpha=alpha)
+        self.backbone = rb.create_resnet_backbone(name=backbone_name)
         self.head = Head(
             backbone_output_filters=self.backbone.filters, class_number=class_number
         )

@@ -4,11 +4,10 @@ from pathlib import Path
 import torch
 import torchvision.transforms.v2 as transforms
 from callbacks.tensorboard_callback import TensorBoardCallback
-from data.data_loader import PascalVOCDataLoader
+from data.data_loader import MSCocoDataLoader  # Changed from PascalVOCDataLoader
 from encoders.centernet_encoder import CenternetEncoder
 from models.centernet import ModelBuilder, IMG_WIDTH, IMG_HEIGHT
 from utils.config import load_config
-
 
 def criteria_builder(stop_loss, stop_epoch):
     def criteria_satisfied(current_loss, current_epoch):
@@ -20,7 +19,6 @@ def criteria_builder(stop_loss, stop_epoch):
 
     return criteria_satisfied
 
-
 def save_model(model, weights_path: str = None, **kwargs):
     checkpoints_dir = weights_path or "models/checkpoints"
     tag = kwargs.get("tag", "train")
@@ -28,12 +26,11 @@ def save_model(model, weights_path: str = None, **kwargs):
     cur_dir = Path(__file__).resolve().parent
 
     checkpoint_filename = (
-            cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}.pt"
+            cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}_coco.pt"
     )
 
     torch.save(model.state_dict(), checkpoint_filename)
     print(f"Saved model checkpoint to {checkpoint_filename}")
-
 
 def evaluate_model(model, dataloader, device):
     model.eval()
@@ -52,13 +49,13 @@ def evaluate_model(model, dataloader, device):
 
     return total_loss / num_batches if num_batches > 0 else float('inf')
 
-
 def train(model_conf, train_conf, data_conf):
     tensorboard = TensorBoardCallback()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    train_loader = PascalVOCDataLoader(dataset_path="../VOC", image_set="train")
-    val_loader = PascalVOCDataLoader(dataset_path="../VOC", image_set="val")
+    # Changed dataset paths and loader class
+    train_loader = MSCocoDataLoader(dataset_path="../COCO", image_set="train")
+    val_loader = MSCocoDataLoader(dataset_path="../COCO", image_set="val")
 
     transform = transforms.Compose([
         transforms.Resize(size=(IMG_WIDTH, IMG_HEIGHT)),
@@ -184,7 +181,6 @@ def train(model_conf, train_conf, data_conf):
         backbone=model_conf["backbone"]["name"],
     )
 
-
 def main(config_path: str = None):
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", type=str, help="path to config file")
@@ -195,7 +191,6 @@ def main(config_path: str = None):
     model_conf, train_conf, data_conf = load_config(filepath)
 
     train(model_conf, train_conf, data_conf)
-
 
 if __name__ == "__main__":
     main()

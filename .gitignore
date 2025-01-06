@@ -4,3 +4,4 @@ __pycache__/
 models/checkpoints/*.pt
 COCO/
 callbacks/
+training/runs

@@ -1,16 +1,16 @@
 {
   "model": {
-    "alpha": 0.25,
+    "alpha": null,
     "weights_path": null,
     "backbone": {
-      "name": "resnet",
-      "pretrained_weights": "resnet"
+      "name": "efficientnet_b7",
+      "pretrained_weights": null
     }
   },
   "train": {
-    "is_overfit": true,
+    "is_overfit": false,
     "lr": 5e-2,
-    "batch_size": 32,
+    "batch_size": 10,
     "subset_len": 10,
     "lr_schedule": {
       "patience": 100,
