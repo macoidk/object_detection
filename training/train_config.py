@@ -9,7 +9,6 @@ from encoders.mscoco_encoder import MSCOCOCenternetEncoder
 from encoders.centernet_encoder import CenternetEncoder
 from models.centernet import ModelBuilder, IMG_WIDTH, IMG_HEIGHT
 from utils.config import load_config, get_dataset_params
-from map_calculator import MAPCalculator
 
 
 def get_dataset_loader(dataset_name: str):
@@ -64,7 +63,7 @@ def save_model(model, weights_path: str = None, **kwargs):
     print(f"Saved model checkpoint to {checkpoint_filename}")
 
 
-def evaluate_model(model, dataloader, device, map_calculator=None):
+def evaluate_model(model, dataloader, device):
     model.eval()
     total_loss = 0
     num_batches = 0
@@ -75,21 +74,11 @@ def evaluate_model(model, dataloader, device, map_calculator=None):
             input_data = input_data.to(device).contiguous()
             gt_data = gt_data.to(device)
 
-            predictions = model(input_data)
             loss_dict = model(input_data, gt=gt_data)
-
-            if map_calculator is not None:
-                map_calculator.update(predictions, gt_data)
-
             total_loss += loss_dict["loss"].item()
             num_batches += 1
 
-    avg_loss = total_loss / num_batches if num_batches > 0 else float('inf')
-
-    map_score = map_calculator.compute() if map_calculator is not None else 0.0
-    map_calculator.reset() if map_calculator is not None else None
-
-    return avg_loss, map_score
+    return total_loss / num_batches if num_batches > 0 else float('inf')
 
 
 def train(model_conf, train_conf, data_conf):
@@ -156,7 +145,6 @@ def train(model_conf, train_conf, data_conf):
         )
 
     num_classes = get_dataset_params(dataset_config["name"])["classes_amount"]
-    map_calculator = MAPCalculator(num_classes=num_classes)
 
     model = ModelBuilder(
         alpha=model_conf["alpha"],
@@ -193,10 +181,6 @@ def train(model_conf, train_conf, data_conf):
             gt_data = gt_data.to(device)
             gt_data.requires_grad = False
 
-            # Get predictions for mAP calculation
-            predictions = model(input_data)
-            map_calculator.update(predictions, gt_data)
-
             loss_dict = model(input_data, gt=gt_data)
             optimizer.zero_grad()
             loss_dict["loss"].backward()
@@ -205,42 +189,35 @@ def train(model_conf, train_conf, data_conf):
             curr_lr = optimizer.param_groups[0]['lr']
 
             if train_conf["is_overfit"]:
-                map_score = map_calculator.compute()
-                map_calculator.reset()
-                batch_metrics = {
-                    "val_loss": loss_dict["loss"].item(),
-                    "map": map_score
-                }
-                print(
-                    f"Epoch {epoch}, batch {i}, val_loss={loss_dict['loss'].item():.3f}, mAP={map_score:.3f}, lr={curr_lr}")
+                batch_metrics = {"val_loss": loss_dict["loss"].item()}
             else:
                 batch_metrics = {"train_loss": loss_dict["loss"].item()}
-                print(f"Epoch {epoch}, batch {i}, train_loss={loss_dict['loss'].item():.3f}, lr={curr_lr}")
 
             tensorboard.log_batch(epoch, i, batch_metrics, curr_lr)
 
             train_loss += loss_dict["loss"].item()
             num_train_batches += 1
 
+            if train_conf["is_overfit"]:
+                print(f"Epoch {epoch}, batch {i}, val_loss={loss_dict['loss'].item():.3f}, lr={curr_lr}")
+            else:
+                print(f"Epoch {epoch}, batch {i}, train_loss={loss_dict['loss'].item():.3f}, lr={curr_lr}")
+
         avg_loss = train_loss / num_train_batches if num_train_batches > 0 else float('inf')
 
         if train_conf["is_overfit"]:
-            map_score = map_calculator.compute()
-            map_calculator.reset()
             epoch_loss_dict = {
-                "val_loss": avg_loss,
-                "map": map_score
+                "val_loss": avg_loss
             }
-            print(f"Epoch {epoch}: val_loss={avg_loss:.3f}, mAP={map_score:.3f}")
+            print(f"Epoch {epoch}: val_loss={avg_loss:.3f}")
             scheduler.step(avg_loss)
         else:
-            val_loss, map_score = evaluate_model(model, val_loader, device, map_calculator)
+            val_loss = evaluate_model(model, val_loader, device)
             epoch_loss_dict = {
                 "train_loss": avg_loss,
                 "val_loss": val_loss,
-                "map": map_score
             }
-            print(f"Epoch {epoch}: train_loss={avg_loss:.3f}, val_loss={val_loss:.3f}, mAP={map_score:.3f}")
+            print(f"Epoch {epoch}: train_loss={avg_loss:.3f}, val_loss={val_loss:.3f}")
             scheduler.step(val_loss)
 
         tensorboard.on_epoch_end(epoch, epoch_loss_dict, curr_lr)
