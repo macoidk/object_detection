@@ -4,14 +4,42 @@ from pathlib import Path
 import torch
 import torchvision.transforms.v2 as transforms
 from callbacks.tensorboard_callback import TensorBoardCallback
-from data.data_loader import MSCocoDataLoader  # Changed from PascalVOCDataLoader
+from data.data_loader import MSCocoDataLoader, PascalVOCDataLoader
+from encoders.mscoco_encoder import MSCOCOCenternetEncoder
 from encoders.centernet_encoder import CenternetEncoder
 from models.centernet import ModelBuilder, IMG_WIDTH, IMG_HEIGHT
 from utils.config import load_config
 
+
+def get_dataset_loader(dataset_name: str):
+    """Factory function to get the appropriate dataset loader"""
+    loaders = {
+        "coco": MSCocoDataLoader,
+        "voc": PascalVOCDataLoader
+    }
+    return loaders.get(dataset_name.lower())
+
+
+def get_dataset_encoder(dataset_name: str, img_height: int, img_width: int, down_ratio: int):
+    """Factory function to get the appropriate encoder"""
+    if dataset_name.lower() == "coco":
+        return MSCOCOCenternetEncoder(
+            img_height=img_height,
+            img_width=img_width,
+            down_ratio=down_ratio,
+            n_classes=80
+        )
+    else:  # VOC
+        return CenternetEncoder(
+            img_height=img_height,
+            img_width=img_width,
+            down_ratio=down_ratio
+        )
+
+
 def criteria_builder(stop_loss, stop_epoch):
     def criteria_satisfied(current_loss, current_epoch):
-        if stop_loss is not None and current_loss < 1.0:
+        if stop_loss is not None and current_loss < stop_loss:
             return True
         if stop_epoch is not None and current_epoch > stop_epoch:
             return True
@@ -19,18 +47,21 @@ def criteria_builder(stop_loss, stop_epoch):
 
     return criteria_satisfied
 
+
 def save_model(model, weights_path: str = None, **kwargs):
     checkpoints_dir = weights_path or "models/checkpoints"
     tag = kwargs.get("tag", "train")
     backbone = kwargs.get("backbone", "default")
+    dataset = kwargs.get("dataset", "unknown")
     cur_dir = Path(__file__).resolve().parent
 
     checkpoint_filename = (
-            cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}_coco.pt"
+            cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}_{dataset}.pt"
     )
 
     torch.save(model.state_dict(), checkpoint_filename)
     print(f"Saved model checkpoint to {checkpoint_filename}")
+
 
 def evaluate_model(model, dataloader, device):
     model.eval()
@@ -49,13 +80,27 @@ def evaluate_model(model, dataloader, device):
 
     return total_loss / num_batches if num_batches > 0 else float('inf')
 
+
 def train(model_conf, train_conf, data_conf):
     tensorboard = TensorBoardCallback()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Changed dataset paths and loader class
-    train_loader = MSCocoDataLoader(dataset_path="../COCO", image_set="train")
-    val_loader = MSCocoDataLoader(dataset_path="../COCO", image_set="val")
+    # Get appropriate dataset loader class
+    dataset_config = data_conf["dataset"]
+    DatasetLoader = get_dataset_loader(dataset_config["name"])
+
+    if DatasetLoader is None:
+        raise ValueError(f"Unknown dataset: {dataset_config['name']}")
+
+    # Initialize data loaders
+    train_loader = DatasetLoader(
+        dataset_path=dataset_config["path"],
+        image_set=dataset_config["train_set"]
+    )
+    val_loader = DatasetLoader(
+        dataset_path=dataset_config["path"],
+        image_set=dataset_config["val_set"]
+    )
 
     transform = transforms.Compose([
         transforms.Resize(size=(IMG_WIDTH, IMG_HEIGHT)),
@@ -63,20 +108,26 @@ def train(model_conf, train_conf, data_conf):
         transforms.ToDtype(torch.float32, scale=True),
     ])
 
-    encoder = CenternetEncoder(IMG_HEIGHT, IMG_WIDTH)
+    # Get appropriate encoder
+    encoder = get_dataset_encoder(
+        dataset_config["name"],
+        img_height=256,
+        img_width=256,
+        down_ratio=4
+    )
 
     if train_conf["is_overfit"]:
         val_dataset = val_loader.load(transform, encoder)
         training_data = torch.utils.data.Subset(val_dataset, range(train_conf["subset_len"]))
         batch_size = train_conf["subset_len"]
         tag = "overfit"
-        print("Running in overfit mode with subset of validation data")
+        print(f"Running in overfit mode with subset of {dataset_config['name']} validation data")
     else:
         training_data = train_loader.load(transform, encoder)
         validation_data = val_loader.load(transform, encoder)
         batch_size = train_conf["batch_size"]
         tag = "train"
-        print("Running in training mode with full train/val split")
+        print(f"Running in training mode with full {dataset_config['name']} train/val split")
 
     train_loader = torch.utils.data.DataLoader(
         training_data,
@@ -93,10 +144,14 @@ def train(model_conf, train_conf, data_conf):
             num_workers=0
         )
 
+    num_classes = 80 if dataset_config["name"].lower() == "coco" else 20
+
     model = ModelBuilder(
         alpha=model_conf["alpha"],
         backbone=model_conf["backbone"]["name"],
         backbone_weights=model_conf["backbone"]["pretrained_weights"],
+        class_number=num_classes
+
     ).to(device)
 
     parameters = list(model.parameters())
@@ -131,7 +186,7 @@ def train(model_conf, train_conf, data_conf):
             loss_dict["loss"].backward()
             optimizer.step()
 
-            curr_lr = scheduler.get_last_lr()[0]
+            curr_lr = optimizer.param_groups[0]['lr']
 
             if train_conf["is_overfit"]:
                 batch_metrics = {"val_loss": loss_dict["loss"].item()}
@@ -179,7 +234,9 @@ def train(model_conf, train_conf, data_conf):
         model_conf["weights_path"],
         tag=tag,
         backbone=model_conf["backbone"]["name"],
+        dataset=dataset_config["name"]
     )
+
 
 def main(config_path: str = None):
     parser = argparse.ArgumentParser()
@@ -191,6 +248,7 @@ def main(config_path: str = None):
     model_conf, train_conf, data_conf = load_config(filepath)
 
     train(model_conf, train_conf, data_conf)
+
 
 if __name__ == "__main__":
     main()
