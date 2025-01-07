@@ -10,10 +10,10 @@
   "train": {
     "is_overfit": true,
     "lr": 5e-3,
-    "batch_size": 5,
-    "subset_len": 5,
+    "batch_size": 10,
+    "subset_len": 10,
     "lr_schedule": {
-      "patience": 5,
+      "patience": 100,
       "factor": 0.5,
       "min_lr": 2e-3
     },
