@@ -31,6 +31,7 @@ class ModelBuilder(nn.Module):
             IMG_WIDTH // 4,
         )
 
+
     def forward(self, x, gt=None):
         x = x / 0.5 - 1.0  # normalization
         out = self.backbone(x)
