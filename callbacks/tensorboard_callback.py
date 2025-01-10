@@ -1,5 +1,6 @@
-from torch.utils.tensorboard import SummaryWriter
 import time
+
+from torch.utils.tensorboard import SummaryWriter
 
 
 class TensorBoardCallback:

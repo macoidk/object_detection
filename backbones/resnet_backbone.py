@@ -55,6 +55,7 @@ class ResnetBackbone(AbstractBackbone):
         out_stride_32 = x
         return out_stride_2, out_stride_4, out_stride_8, out_stride_16, out_stride_32
 
+
 def create_resnet_backbone(name, weights=None):
     assert name.startswith("resnet")
     model = models.get_model(name, weights=weights)

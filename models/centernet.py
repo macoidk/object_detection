@@ -1,9 +1,10 @@
 import torch.nn as nn
 
-from losses.centernet_ttf import CenternetTTFLoss
 from backbones import create_backbone
 from heads.centernet_head import Head
+from losses.centernet_ttf import CenternetTTFLoss
 from utils.config import IMG_HEIGHT, IMG_WIDTH
+
 
 class ModelBuilder(nn.Module):
     """
@@ -24,7 +25,6 @@ class ModelBuilder(nn.Module):
             backbone_output_filters=self.backbone.filters, class_number=class_number
         )
         self.loss = CenternetTTFLoss(
-
             class_number,
             4,
             IMG_HEIGHT // 4,

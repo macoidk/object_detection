@@ -14,6 +14,7 @@ from utils.io_utils import download_file, unzip_archive
 
 input_height = input_width = 256
 
+
 class DataLoader(ABC):
     def __init__(self, *, dataset_path: str, image_set: str = None):
         self.image_set = image_set or "train"
