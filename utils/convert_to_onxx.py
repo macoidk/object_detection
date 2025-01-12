@@ -17,9 +17,7 @@ def test_onnx_model(onnx_path: str, test_input: torch.Tensor):
     ort_inputs = {"input": test_input.detach().cpu().numpy()}
 
     ort_outputs = ort_session.run(None, ort_inputs)
-    print(
-        f"ONNX model tested. output format: {[o.shape for o in ort_outputs]}"
-    )
+    print(f"ONNX model tested. output format: {[o.shape for o in ort_outputs]}")
     return ort_outputs
 
 

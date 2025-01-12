@@ -2,7 +2,7 @@ import sys
 
 sys.path.append("..")
 
-from models.centernet import ModelBuilder, IMG_HEIGHT, IMG_WIDTH
+from models.centernet import IMG_HEIGHT, IMG_WIDTH, ModelBuilder
 from utils.convert_to_onxx import export_to_onnx
 
 
