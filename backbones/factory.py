@@ -8,7 +8,7 @@ from .resnet_backbone import ResnetBackbone
 
 BACKBONE_BUILDER_CONF = {
     "resnet": ResnetBackbone,
-    "efficientnet_b7": TorchvisionBackbone,
+    "efficientnet": TorchvisionBackbone,
     "mobilenet_v2": TorchvisionBackbone,
     "convnext_nano": TorchvisionBackbone,
     "convnext_tiny": TorchvisionBackbone,
