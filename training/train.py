@@ -13,7 +13,7 @@ from utils.config import load_config
 
 def criteria_builder(stop_loss, stop_epoch):
     def criteria_satisfied(current_loss, current_epoch):
-        if stop_loss is not None and current_loss < 1.0:
+        if stop_loss is not None and current_loss < stop_loss:
             return True
         if stop_epoch is not None and current_epoch > stop_epoch:
             return True
