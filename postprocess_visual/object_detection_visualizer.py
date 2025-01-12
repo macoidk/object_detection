@@ -113,7 +113,6 @@ class ObjectDetectionVisualizer:
             plt.xlabel("Confidence Score")
         else:
             plt.text(0.5, 0.5, "No detections", ha="center", va="center")
-        plt.tight_layout()
 
     def visualize_predictions(self, preds):
         for i, orig_img in enumerate(self.dataset):
@@ -151,4 +150,6 @@ class ObjectDetectionVisualizer:
             self._plot_detection_results(
                 orig_img, colored_heatmap, img_np, pred_scores, i
             )
+
+            plt.tight_layout()
             plt.show()

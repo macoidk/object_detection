@@ -19,7 +19,6 @@ def get_dataset_params(dataset_name: str) -> dict:
 
 
 def load_config(filepath: str) -> Tuple[dict, dict, dict]:
-
     with open(filepath, "r") as f:
         config = json.load(f)
 
