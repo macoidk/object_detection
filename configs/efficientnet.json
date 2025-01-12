@@ -1,0 +1,34 @@
+{
+  "model": {
+    "alpha": null,
+    "weights_path": null,
+    "backbone": {
+      "name": "efficientnet_b7",
+      "pretrained_weights": null
+    }
+  },
+  "train": {
+    "is_overfit": true,
+    "lr": 5e-3,
+    "batch_size": 10,
+    "subset_len": 10,
+    "lr_schedule": {
+      "patience": 100,
+      "factor": 0.5,
+      "min_lr": 2e-3
+    },
+    "stop_criteria": {
+      "loss": 1.0,
+      "epoch": null
+    }
+  },
+  "data": {
+    "dataset": {
+      "name": "voc",
+      "path": "../VOC",
+      "train_set": "train",
+      "val_set": "val"
+    },
+    "is_download": false
+  }
+}
