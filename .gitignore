@@ -5,3 +5,4 @@ models/checkpoints/*.pt
 COCO/
 callbacks/
 training/runs
+export_model_onxx/onnx

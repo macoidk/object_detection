@@ -6,7 +6,7 @@ IMG_HEIGHT = IMG_WIDTH = 256
 _DATASET_PARAMS = {
     "coco": {"classes_amount": 80},
     "voc": {"classes_amount": 20},
-    "default": {"classes_amount": 20}
+    "default": {"classes_amount": 20},
 }
 
 
