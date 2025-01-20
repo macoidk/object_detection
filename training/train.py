@@ -184,9 +184,7 @@ def train(model_conf, train_conf, data_conf):
             train_loss.append(
                 calculate_loss(model, train_data, batch_size, num_workers)
             )
-            val_loss.append(
-                calculate_loss(model, val_data, batch_size, num_workers)
-            )
+            val_loss.append(calculate_loss(model, val_data, batch_size, num_workers))
 
             curr_lr = scheduler.get_last_lr()[0]
             tensorboard.log_metrics(epoch, train_loss[-1], val_loss[-1], curr_lr)
