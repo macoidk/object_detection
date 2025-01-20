@@ -1,12 +1,13 @@
 import argparse
 from pathlib import Path
+from datetime import datetime
 
 import pandas as pd
 import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
+from torch.utils.tensorboard import SummaryWriter
 
-from callback.tensorboard import TensorBoardCallback
 from data.dataset import Dataset
 from models.centernet import ModelBuilder
 from training.encoder import CenternetEncoder
@@ -33,7 +34,7 @@ def save_model(model, weights_path: str = None, **kwargs):
     cur_dir = Path(__file__).resolve().parent
 
     checkpoint_filename = (
-        cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}.pt"
+            cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}.pt"
     )
 
     torch.save(model.state_dict(), checkpoint_filename)
@@ -58,7 +59,7 @@ def calculate_loss(model, data, batch_size=32, num_workers=0):
     )
     loss = 0.0
     count = 0
-    with torch.no_grad() as ng:
+    with torch.no_grad():
         for i, data in enumerate(batch_generator):
             input_data, gt_data = data
             input_data = input_data.to(device).contiguous()
@@ -75,6 +76,9 @@ def calculate_loss(model, data, batch_size=32, num_workers=0):
 
 
 def train(model_conf, train_conf, data_conf):
+    log_dir = f"runs/training_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    writer = SummaryWriter(log_dir=log_dir)
+
     image_set_train = "val" if train_conf["is_overfit"] else "train"
     image_set_val = "test" if train_conf["is_overfit"] else "val"
     print(f"Selected training image_set: {image_set_train}")
@@ -109,8 +113,6 @@ def train(model_conf, train_conf, data_conf):
     train_data = Dataset(
         dataset=dataset_train, transformation=transform, encoder=encoder
     )
-
-    tensorboard = TensorBoardCallback()
 
     tag = "train"
     batch_size = train_conf["batch_size"]
@@ -164,6 +166,8 @@ def train(model_conf, train_conf, data_conf):
 
     while True:
         loss_dict = {}
+        batch_losses = []
+
         for i, data in enumerate(batch_generator_train):
             input_data, gt_data = data
             input_data = input_data.to(device).contiguous()
@@ -172,22 +176,29 @@ def train(model_conf, train_conf, data_conf):
             gt_data.requires_grad = False
 
             loss_dict = model(input_data, gt=gt_data)
-            optimizer.zero_grad()  # compute gradient and do optimize step
+            optimizer.zero_grad()
             loss_dict["loss"].backward()
 
             optimizer.step()
             loss = loss_dict["loss"].item()
+            batch_losses.append(loss)
             curr_lr = scheduler.get_last_lr()[0]
             print(f"Epoch {epoch}, batch {i}, loss={loss:.3f}, lr={curr_lr}")
 
+        avg_batch_loss = sum(batch_losses) / len(batch_losses)
+        writer.add_scalar('Loss/train', avg_batch_loss, epoch)
+
         if calculate_epoch_loss:
-            train_loss.append(
-                calculate_loss(model, train_data, batch_size, num_workers)
-            )
-            val_loss.append(calculate_loss(model, val_data, batch_size, num_workers))
+            current_train_loss = calculate_loss(model, train_data, batch_size, num_workers)
+            current_val_loss = calculate_loss(model, val_data, batch_size, num_workers)
+
+            train_loss.append(current_train_loss)
+            val_loss.append(current_val_loss)
 
             curr_lr = scheduler.get_last_lr()[0]
-            tensorboard.log_metrics(epoch, train_loss[-1], val_loss[-1], curr_lr)
+
+            writer.add_scalar('Loss/validation', current_val_loss, epoch)
+            writer.add_scalar('Learning_rate', curr_lr, epoch)
 
             print(f"= = = = = = = = = =")
             print(
@@ -203,7 +214,7 @@ def train(model_conf, train_conf, data_conf):
         scheduler.step(check_loss_value)
         epoch += 1
 
-        tensorboard.close()
+    writer.close()
 
     save_model(
         model,
