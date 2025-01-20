@@ -6,11 +6,11 @@ import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
 
+from callback.tensorboard import TensorBoardCallback
 from data.dataset import Dataset
 from models.centernet import ModelBuilder
 from training.encoder import CenternetEncoder
 from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
-from callback.tensorboard import TensorBoardCallback
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -33,7 +33,7 @@ def save_model(model, weights_path: str = None, **kwargs):
     cur_dir = Path(__file__).resolve().parent
 
     checkpoint_filename = (
-            cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}.pt"
+        cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}.pt"
     )
 
     torch.save(model.state_dict(), checkpoint_filename)
@@ -185,7 +185,9 @@ def train(model_conf, train_conf, data_conf):
                 train_loss.append(
                     calculate_loss(model, train_data, batch_size, num_workers)
                 )
-                val_loss.append(calculate_loss(model, val_data, batch_size, num_workers))
+                val_loss.append(
+                    calculate_loss(model, val_data, batch_size, num_workers)
+                )
 
                 # Логування в TensorBoard
                 curr_lr = scheduler.get_last_lr()[0]
