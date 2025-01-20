@@ -1,6 +1,6 @@
 import argparse
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 import torch
@@ -34,7 +34,7 @@ def save_model(model, weights_path: str = None, **kwargs):
     cur_dir = Path(__file__).resolve().parent
 
     checkpoint_filename = (
-            cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}.pt"
+        cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}.pt"
     )
 
     torch.save(model.state_dict(), checkpoint_filename)
@@ -186,10 +186,12 @@ def train(model_conf, train_conf, data_conf):
             print(f"Epoch {epoch}, batch {i}, loss={loss:.3f}, lr={curr_lr}")
 
         avg_batch_loss = sum(batch_losses) / len(batch_losses)
-        writer.add_scalar('Loss/train', avg_batch_loss, epoch)
+        writer.add_scalar("Loss/train", avg_batch_loss, epoch)
 
         if calculate_epoch_loss:
-            current_train_loss = calculate_loss(model, train_data, batch_size, num_workers)
+            current_train_loss = calculate_loss(
+                model, train_data, batch_size, num_workers
+            )
             current_val_loss = calculate_loss(model, val_data, batch_size, num_workers)
 
             train_loss.append(current_train_loss)
@@ -197,8 +199,8 @@ def train(model_conf, train_conf, data_conf):
 
             curr_lr = scheduler.get_last_lr()[0]
 
-            writer.add_scalar('Loss/validation', current_val_loss, epoch)
-            writer.add_scalar('Learning_rate', curr_lr, epoch)
+            writer.add_scalar("Loss/validation", current_val_loss, epoch)
+            writer.add_scalar("Learning_rate", curr_lr, epoch)
 
             print(f"= = = = = = = = = =")
             print(
