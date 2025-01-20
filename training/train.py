@@ -76,8 +76,7 @@ def calculate_loss(model, data, batch_size=32, num_workers=0):
 
 
 def train(model_conf, train_conf, data_conf):
-    log_dir = f"runs/training_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    writer = SummaryWriter(log_dir=log_dir)
+    writer = SummaryWriter(f"runs/training_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
 
     image_set_train = "val" if train_conf["is_overfit"] else "train"
     image_set_val = "test" if train_conf["is_overfit"] else "val"
@@ -166,8 +165,6 @@ def train(model_conf, train_conf, data_conf):
 
     while True:
         loss_dict = {}
-        batch_losses = []
-
         for i, data in enumerate(batch_generator_train):
             input_data, gt_data = data
             input_data = input_data.to(device).contiguous()
@@ -181,26 +178,18 @@ def train(model_conf, train_conf, data_conf):
 
             optimizer.step()
             loss = loss_dict["loss"].item()
-            batch_losses.append(loss)
             curr_lr = scheduler.get_last_lr()[0]
             print(f"Epoch {epoch}, batch {i}, loss={loss:.3f}, lr={curr_lr}")
 
-        avg_batch_loss = sum(batch_losses) / len(batch_losses)
-        writer.add_scalar("Loss/train", avg_batch_loss, epoch)
-
         if calculate_epoch_loss:
-            current_train_loss = calculate_loss(
-                model, train_data, batch_size, num_workers
+            train_loss.append(
+                calculate_loss(model, train_data, batch_size, num_workers)
             )
-            current_val_loss = calculate_loss(model, val_data, batch_size, num_workers)
+            val_loss.append(calculate_loss(model, val_data, batch_size, num_workers))
 
-            train_loss.append(current_train_loss)
-            val_loss.append(current_val_loss)
-
-            curr_lr = scheduler.get_last_lr()[0]
-
-            writer.add_scalar("Loss/validation", current_val_loss, epoch)
-            writer.add_scalar("Learning_rate", curr_lr, epoch)
+            writer.add_scalar("Train/loss", train_loss[-1], epoch)
+            writer.add_scalar("Val/loss", val_loss[-1], epoch)
+            writer.add_scalar("Train/lr", scheduler.get_last_lr()[0], epoch)
 
             print(f"= = = = = = = = = =")
             print(
