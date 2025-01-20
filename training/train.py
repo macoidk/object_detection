@@ -10,6 +10,7 @@ from data.dataset import Dataset
 from models.centernet import ModelBuilder
 from training.encoder import CenternetEncoder
 from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
+from callback.tensorboard import TensorBoardCallback
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -32,7 +33,7 @@ def save_model(model, weights_path: str = None, **kwargs):
     cur_dir = Path(__file__).resolve().parent
 
     checkpoint_filename = (
-        cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}.pt"
+            cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}.pt"
     )
 
     torch.save(model.state_dict(), checkpoint_filename)
@@ -108,6 +109,9 @@ def train(model_conf, train_conf, data_conf):
     train_data = Dataset(
         dataset=dataset_train, transformation=transform, encoder=encoder
     )
+
+    tensorboard = TensorBoardCallback()
+
     tag = "train"
     batch_size = train_conf["batch_size"]
     train_subset_len = train_conf.get("subset_len")
@@ -158,42 +162,51 @@ def train(model_conf, train_conf, data_conf):
 
     calculate_epoch_loss = train_conf.get("calculate_epoch_loss")
 
-    while True:
-        loss_dict = {}
-        for i, data in enumerate(batch_generator_train):
-            input_data, gt_data = data
-            input_data = input_data.to(device).contiguous()
+    try:
+        while True:
+            loss_dict = {}
+            for i, data in enumerate(batch_generator_train):
+                input_data, gt_data = data
+                input_data = input_data.to(device).contiguous()
 
-            gt_data = gt_data.to(device)
-            gt_data.requires_grad = False
+                gt_data = gt_data.to(device)
+                gt_data.requires_grad = False
 
-            loss_dict = model(input_data, gt=gt_data)
-            optimizer.zero_grad()  # compute gradient and do optimize step
-            loss_dict["loss"].backward()
+                loss_dict = model(input_data, gt=gt_data)
+                optimizer.zero_grad()  # compute gradient and do optimize step
+                loss_dict["loss"].backward()
 
-            optimizer.step()
-            loss = loss_dict["loss"].item()
-            curr_lr = scheduler.get_last_lr()[0]
-            print(f"Epoch {epoch}, batch {i}, loss={loss:.3f}, lr={curr_lr}")
+                optimizer.step()
+                loss = loss_dict["loss"].item()
+                curr_lr = scheduler.get_last_lr()[0]
+                print(f"Epoch {epoch}, batch {i}, loss={loss:.3f}, lr={curr_lr}")
 
-        if calculate_epoch_loss:
-            train_loss.append(
-                calculate_loss(model, train_data, batch_size, num_workers)
-            )
-            val_loss.append(calculate_loss(model, val_data, batch_size, num_workers))
-            print(f"= = = = = = = = = =")
-            print(
-                f"Epoch {epoch} train loss = {train_loss[-1]}, val loss = {val_loss[-1]}"
-            )
-            print(f"= = = = = = = = = =")
+            if calculate_epoch_loss:
+                train_loss.append(
+                    calculate_loss(model, train_data, batch_size, num_workers)
+                )
+                val_loss.append(calculate_loss(model, val_data, batch_size, num_workers))
 
-        if criteria_satisfied(loss, epoch):
-            break
+                # Логування в TensorBoard
+                curr_lr = scheduler.get_last_lr()[0]
+                tensorboard.log_metrics(epoch, train_loss[-1], val_loss[-1], curr_lr)
 
-        check_loss_value = train_loss[-1] if calculate_epoch_loss else loss
+                print(f"= = = = = = = = = =")
+                print(
+                    f"Epoch {epoch} train loss = {train_loss[-1]}, val loss = {val_loss[-1]}"
+                )
+                print(f"= = = = = = = = = =")
 
-        scheduler.step(check_loss_value)
-        epoch += 1
+            if criteria_satisfied(loss, epoch):
+                break
+
+            check_loss_value = train_loss[-1] if calculate_epoch_loss else loss
+
+            scheduler.step(check_loss_value)
+            epoch += 1
+
+    finally:
+        tensorboard.close()
 
     save_model(
         model,
