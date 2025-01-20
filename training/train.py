@@ -162,51 +162,49 @@ def train(model_conf, train_conf, data_conf):
 
     calculate_epoch_loss = train_conf.get("calculate_epoch_loss")
 
-    try:
-        while True:
-            loss_dict = {}
-            for i, data in enumerate(batch_generator_train):
-                input_data, gt_data = data
-                input_data = input_data.to(device).contiguous()
+    while True:
+        loss_dict = {}
+        for i, data in enumerate(batch_generator_train):
+            input_data, gt_data = data
+            input_data = input_data.to(device).contiguous()
 
-                gt_data = gt_data.to(device)
-                gt_data.requires_grad = False
+            gt_data = gt_data.to(device)
+            gt_data.requires_grad = False
 
-                loss_dict = model(input_data, gt=gt_data)
-                optimizer.zero_grad()  # compute gradient and do optimize step
-                loss_dict["loss"].backward()
+            loss_dict = model(input_data, gt=gt_data)
+            optimizer.zero_grad()  # compute gradient and do optimize step
+            loss_dict["loss"].backward()
 
-                optimizer.step()
-                loss = loss_dict["loss"].item()
-                curr_lr = scheduler.get_last_lr()[0]
-                print(f"Epoch {epoch}, batch {i}, loss={loss:.3f}, lr={curr_lr}")
+            optimizer.step()
+            loss = loss_dict["loss"].item()
+            curr_lr = scheduler.get_last_lr()[0]
+            print(f"Epoch {epoch}, batch {i}, loss={loss:.3f}, lr={curr_lr}")
 
-            if calculate_epoch_loss:
-                train_loss.append(
-                    calculate_loss(model, train_data, batch_size, num_workers)
-                )
-                val_loss.append(
-                    calculate_loss(model, val_data, batch_size, num_workers)
-                )
+        if calculate_epoch_loss:
+            train_loss.append(
+                calculate_loss(model, train_data, batch_size, num_workers)
+            )
+            val_loss.append(
+                calculate_loss(model, val_data, batch_size, num_workers)
+            )
 
-                curr_lr = scheduler.get_last_lr()[0]
-                tensorboard.log_metrics(epoch, train_loss[-1], val_loss[-1], curr_lr)
+            curr_lr = scheduler.get_last_lr()[0]
+            tensorboard.log_metrics(epoch, train_loss[-1], val_loss[-1], curr_lr)
 
-                print(f"= = = = = = = = = =")
-                print(
-                    f"Epoch {epoch} train loss = {train_loss[-1]}, val loss = {val_loss[-1]}"
-                )
-                print(f"= = = = = = = = = =")
+            print(f"= = = = = = = = = =")
+            print(
+                f"Epoch {epoch} train loss = {train_loss[-1]}, val loss = {val_loss[-1]}"
+            )
+            print(f"= = = = = = = = = =")
 
-            if criteria_satisfied(loss, epoch):
-                break
+        if criteria_satisfied(loss, epoch):
+            break
 
-            check_loss_value = train_loss[-1] if calculate_epoch_loss else loss
+        check_loss_value = train_loss[-1] if calculate_epoch_loss else loss
 
-            scheduler.step(check_loss_value)
-            epoch += 1
+        scheduler.step(check_loss_value)
+        epoch += 1
 
-    finally:
         tensorboard.close()
 
     save_model(
