@@ -51,7 +51,9 @@ def save_model(model, weights_path: str = None, **kwargs):
     cur_dir = Path(__file__).resolve().parent
 
     checkpoint_filename = (
-        cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}.pt"
+        cur_dir.parent
+        / checkpoints_dir
+        / f"pretrained_weights_{tag}_{backbone}.pt"
     )
 
     torch.save(model.state_dict(), checkpoint_filename)
@@ -123,9 +125,15 @@ def train(model_conf, train_conf, data_conf):
 
     encoder = CenternetEncoder(IMG_HEIGHT, IMG_WIDTH)
 
-    dataset_val = torchvision.datasets.wrap_dataset_for_transforms_v2(dataset_val)
-    dataset_train = torchvision.datasets.wrap_dataset_for_transforms_v2(dataset_train)
-    val_data = Dataset(dataset=dataset_val, transformation=transform, encoder=encoder)
+    dataset_val = torchvision.datasets.wrap_dataset_for_transforms_v2(
+        dataset_val
+    )
+    dataset_train = torchvision.datasets.wrap_dataset_for_transforms_v2(
+        dataset_train
+    )
+    val_data = Dataset(
+        dataset=dataset_val, transformation=transform, encoder=encoder
+    )
     train_data = Dataset(
         dataset=dataset_train, transformation=transform, encoder=encoder
     )
@@ -141,7 +149,9 @@ def train(model_conf, train_conf, data_conf):
         assert train_subset_len is not None
         batch_size = train_subset_len
     if train_subset_len is not None:
-        train_data = torch.utils.data.Subset(train_data, range(train_subset_len))
+        train_data = torch.utils.data.Subset(
+            train_data, range(train_subset_len)
+        )
     if val_subset_len is not None:
         val_data = torch.utils.data.Subset(val_data, range(val_subset_len))
 
@@ -170,7 +180,10 @@ def train(model_conf, train_conf, data_conf):
     model.train(True)
 
     batch_generator_train = torch.utils.data.DataLoader(
-        train_data, num_workers=num_workers, batch_size=batch_size, shuffle=False
+        train_data,
+        num_workers=num_workers,
+        batch_size=batch_size,
+        shuffle=False,
     )
 
     epoch = 1
