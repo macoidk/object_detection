@@ -1,5 +1,4 @@
 import argparse
-from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -11,7 +10,7 @@ from torch.utils.tensorboard import SummaryWriter
 from data.dataset import Dataset
 from models.centernet import ModelBuilder
 from training.encoder import CenternetEncoder
-from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
+from utils.config import IMG_HEIGHT, IMG_WIDTH, TENSORBOARD_FOLDER, load_config
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -76,7 +75,7 @@ def calculate_loss(model, data, batch_size=32, num_workers=0):
 
 
 def train(model_conf, train_conf, data_conf):
-    writer = SummaryWriter(f"runs/training_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    writer = SummaryWriter(TENSORBOARD_FOLDER)
 
     image_set_train = "val" if train_conf["is_overfit"] else "train"
     image_set_val = "test" if train_conf["is_overfit"] else "val"
