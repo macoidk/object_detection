@@ -5,9 +5,10 @@ import pandas as pd
 import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
+from torch.utils.tensorboard import SummaryWriter
+
 from data.dataset import Dataset
 from models.centernet import ModelBuilder
-from torch.utils.tensorboard import SummaryWriter
 from training.encoder import CenternetEncoder
 from utils.config import IMG_HEIGHT, IMG_WIDTH, TENSORBOARD_FOLDER, load_config
 
@@ -51,9 +52,7 @@ def save_model(model, weights_path: str = None, **kwargs):
     cur_dir = Path(__file__).resolve().parent
 
     checkpoint_filename = (
-        cur_dir.parent
-        / checkpoints_dir
-        / f"pretrained_weights_{tag}_{backbone}.pt"
+        cur_dir.parent / checkpoints_dir / f"pretrained_weights_{tag}_{backbone}.pt"
     )
 
     torch.save(model.state_dict(), checkpoint_filename)
@@ -125,15 +124,9 @@ def train(model_conf, train_conf, data_conf):
 
     encoder = CenternetEncoder(IMG_HEIGHT, IMG_WIDTH)
 
-    dataset_val = torchvision.datasets.wrap_dataset_for_transforms_v2(
-        dataset_val
-    )
-    dataset_train = torchvision.datasets.wrap_dataset_for_transforms_v2(
-        dataset_train
-    )
-    val_data = Dataset(
-        dataset=dataset_val, transformation=transform, encoder=encoder
-    )
+    dataset_val = torchvision.datasets.wrap_dataset_for_transforms_v2(dataset_val)
+    dataset_train = torchvision.datasets.wrap_dataset_for_transforms_v2(dataset_train)
+    val_data = Dataset(dataset=dataset_val, transformation=transform, encoder=encoder)
     train_data = Dataset(
         dataset=dataset_train, transformation=transform, encoder=encoder
     )
@@ -149,9 +142,7 @@ def train(model_conf, train_conf, data_conf):
         assert train_subset_len is not None
         batch_size = train_subset_len
     if train_subset_len is not None:
-        train_data = torch.utils.data.Subset(
-            train_data, range(train_subset_len)
-        )
+        train_data = torch.utils.data.Subset(train_data, range(train_subset_len))
     if val_subset_len is not None:
         val_data = torch.utils.data.Subset(val_data, range(val_subset_len))
 
@@ -233,9 +224,7 @@ def train(model_conf, train_conf, data_conf):
         if criteria_satisfied(loss, epoch):
             break
 
-        check_loss_value = (
-            train_validation_loss if calculate_epoch_loss else loss
-        )
+        check_loss_value = train_validation_loss if calculate_epoch_loss else loss
 
         scheduler.step(check_loss_value)
         epoch += 1
