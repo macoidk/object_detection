@@ -5,10 +5,9 @@ import pandas as pd
 import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
-from torch.utils.tensorboard import SummaryWriter
-
 from data.dataset import Dataset
 from models.centernet import ModelBuilder
+from torch.utils.tensorboard import SummaryWriter
 from training.encoder import CenternetEncoder
 from utils.config import IMG_HEIGHT, IMG_WIDTH, TENSORBOARD_FOLDER, load_config
 
