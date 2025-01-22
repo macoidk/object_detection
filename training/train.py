@@ -26,6 +26,25 @@ def criteria_builder(stop_loss, stop_epoch):
     return criteria_satisfied
 
 
+def log_stats(tensorboard_writer, epoch, lr, losses: dict):
+    train_validation_loss = losses["validation"]["train"]
+    val_validation_loss = losses["validation"]["val"]
+    # Write to Tensorboard
+    tensorboard_writer.add_scalar("Train/loss", train_validation_loss, epoch)
+    tensorboard_writer.add_scalar("Val/loss", val_validation_loss, epoch)
+    tensorboard_writer.add_scalar("Train/lr", lr, epoch)
+
+    # Verbose
+    print("= = = = = = = = = =")
+    print(
+        (
+            f"Epoch {epoch} train loss = {train_validation_loss},"
+            f"val loss = {val_validation_loss}"
+        )
+    )
+    print("= = = = = = = = = =")
+
+
 def save_model(model, weights_path: str = None, **kwargs):
     checkpoints_dir = weights_path or "models/checkpoints"
     tag = kwargs.get("tag", "train")
@@ -52,7 +71,7 @@ def main(config_path: str = None):
     train(model_conf, train_conf, data_conf)
 
 
-def calculate_loss(model, data, batch_size=32, num_workers=0):
+def calculate_validation_loss(model, data, batch_size=32, num_workers=0):
     batch_generator = torch.utils.data.DataLoader(
         data, num_workers=num_workers, batch_size=batch_size, shuffle=False
     )
@@ -157,8 +176,8 @@ def train(model_conf, train_conf, data_conf):
 
     epoch = 1
 
-    train_loss = []
-    val_loss = []
+    train_loss_history = []
+    val_loss_history = []
 
     calculate_epoch_loss = train_conf.get("calculate_epoch_loss")
 
@@ -181,25 +200,30 @@ def train(model_conf, train_conf, data_conf):
             print(f"Epoch {epoch}, batch {i}, loss={loss:.3f}, lr={curr_lr}")
 
         if calculate_epoch_loss:
-            train_loss.append(
-                calculate_loss(model, train_data, batch_size, num_workers)
+            last_lr = scheduler.get_last_lr()[0]
+            train_validation_loss = calculate_validation_loss(
+                model, train_data, batch_size, num_workers
             )
-            val_loss.append(calculate_loss(model, val_data, batch_size, num_workers))
-
-            writer.add_scalar("Train/loss", train_loss[-1], epoch)
-            writer.add_scalar("Val/loss", val_loss[-1], epoch)
-            writer.add_scalar("Train/lr", scheduler.get_last_lr()[0], epoch)
-
-            print(f"= = = = = = = = = =")
-            print(
-                f"Epoch {epoch} train loss = {train_loss[-1]}, val loss = {val_loss[-1]}"
+            val_validation_loss = calculate_validation_loss(
+                model, val_data, batch_size, num_workers
             )
-            print(f"= = = = = = = = = =")
+            train_loss_history.append(train_validation_loss)
+            val_loss_history.append(val_validation_loss)
+
+            loss_stats = {
+                "validation": {
+                    "train": train_validation_loss,
+                    "val": val_validation_loss,
+                }
+            }
+            log_stats(writer, epoch, last_lr, loss_stats)
 
         if criteria_satisfied(loss, epoch):
             break
 
-        check_loss_value = train_loss[-1] if calculate_epoch_loss else loss
+        check_loss_value = (
+            train_validation_loss if calculate_epoch_loss else loss
+        )
 
         scheduler.step(check_loss_value)
         epoch += 1
@@ -213,7 +237,12 @@ def train(model_conf, train_conf, data_conf):
         backbone=model_conf["backbone"]["name"],
     )
 
-    loss_df = pd.DataFrame({"train_loss": train_loss, "val_loss": val_loss})
+    loss_df = pd.DataFrame(
+        {
+            "train_loss": train_loss_history,
+            "val_loss": val_loss_history,
+        }
+    )
     loss_df.to_csv("losses.csv")
 
 
