@@ -9,8 +9,9 @@ import torchvision.transforms.v2 as transforms
 from data.dataset import Dataset
 from models.centernet import ModelBuilder
 from torch.utils.tensorboard import SummaryWriter
-from training.encoder import CenternetEncoder
 from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
+
+from training.encoder import CenternetEncoder
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -103,13 +104,13 @@ def train(model_conf, train_conf, data_conf):
     print(f"Selected validation image_set: {image_set_val}")
 
     dataset_val = torchvision.datasets.VOCDetection(
-        root=f"../VOC",
+        root=f"../../VOC",
         year="2007",
         image_set=image_set_val,
         download=data_conf["is_download"],
     )
     dataset_train = torchvision.datasets.VOCDetection(
-        root=f"../VOC",
+        root=f"../../VOC",
         year="2007",
         image_set=image_set_train,
         download=False,
@@ -249,4 +250,4 @@ def train(model_conf, train_conf, data_conf):
 
 
 if __name__ == "__main__":
-    main()
+    main("config_example_quick_train_with_epoch_loss.json")
