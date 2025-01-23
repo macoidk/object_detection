@@ -1,16 +1,16 @@
 import argparse
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
-from torch.utils.tensorboard import SummaryWriter
-
 from data.dataset import Dataset
 from models.centernet import ModelBuilder
+from torch.utils.tensorboard import SummaryWriter
 from training.encoder import CenternetEncoder
-from utils.config import IMG_HEIGHT, IMG_WIDTH, TENSORBOARD_FOLDER, load_config
+from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -94,7 +94,8 @@ def calculate_validation_loss(model, data, batch_size=32, num_workers=0):
 
 
 def train(model_conf, train_conf, data_conf):
-    writer = SummaryWriter(TENSORBOARD_FOLDER)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    writer = SummaryWriter(f"runs/training_{timestamp}")
 
     image_set_train = "val" if train_conf["is_overfit"] else "train"
     image_set_val = "test" if train_conf["is_overfit"] else "val"
@@ -244,7 +245,7 @@ def train(model_conf, train_conf, data_conf):
             "val_loss": val_loss_history,
         }
     )
-    loss_df.to_csv("losses.csv")
+    loss_df.to_csv(f"losses_{timestamp}.csv")
 
 
 if __name__ == "__main__":
