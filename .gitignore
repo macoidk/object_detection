@@ -3,4 +3,6 @@ COCO/
 __pycache__/
 .idea/
 models/checkpoints/*.pt
+runs
+training/losses*
 
