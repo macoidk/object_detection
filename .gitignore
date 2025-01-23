@@ -5,4 +5,4 @@ __pycache__/
 models/checkpoints/*.pt
 PASCAL_VOC/
 runs/
-/training/losses.csv
+/training/losses*
