@@ -5,13 +5,13 @@ from pathlib import Path
 import pandas as pd
 import torch
 import torchvision.transforms.v2 as transforms
+from torch.utils.tensorboard import SummaryWriter
+
 from data.dataset import Dataset
 from data.dataset_loaders import MSCOCODatasetLoader
 from models.centernet import ModelBuilder
-from torch.utils.tensorboard import SummaryWriter
-from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
-
 from training.encoder import CenternetEncoder
+from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

@@ -5,11 +5,11 @@ import pandas as pd
 import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
+
 from data.dataset import Dataset
 from models.centernet import ModelBuilder
-from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
-
 from training.encoder import CenternetEncoder
+from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
