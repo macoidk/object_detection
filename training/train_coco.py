@@ -9,8 +9,9 @@ from data.dataset import Dataset
 from data.dataset_loaders import MSCOCODatasetLoader
 from models.centernet import ModelBuilder
 from torch.utils.tensorboard import SummaryWriter
-from training.encoder import CenternetEncoder
 from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
+
+from training.encoder import CenternetEncoder
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -246,4 +247,4 @@ def train(model_conf, train_conf, data_conf):
 
 
 if __name__ == "__main__":
-    main("config_example.json")
+    main("config_example_quick_train_with_epoch_loss.json")
