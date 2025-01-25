@@ -4,12 +4,12 @@ from pathlib import Path
 import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
+
 from data.dataset import Dataset
 from data.dataset_loaders import MSCOCODatasetLoader
 from models.centernet import ModelBuilder
-from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
-
 from training.encoder import CenternetEncoder
+from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
 
 
 def criteria_builder(stop_loss, stop_epoch):

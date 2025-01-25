@@ -6,12 +6,12 @@ import pandas as pd
 import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
+
+from callbacks.tensorboard_callback import TensorboardCallback
 from data.dataset import Dataset
 from models.centernet import ModelBuilder
-from callbacks.tensorboard_callback import TensorboardCallback
-from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
-
 from training.encoder import CenternetEncoder
+from utils.config import IMG_HEIGHT, IMG_WIDTH, load_config
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -99,11 +99,13 @@ def train(model_conf, train_conf, data_conf):
 
     tensorboard_callback = TensorboardCallback(log_dir="runs")
 
-    tensorboard_callback.on_train_begin({
-        'model_config': str(model_conf),
-        'train_config': str(train_conf),
-        'data_config': str(data_conf)
-    })
+    tensorboard_callback.on_train_begin(
+        {
+            "model_config": str(model_conf),
+            "train_config": str(train_conf),
+            "data_config": str(data_conf),
+        }
+    )
 
     image_set_train = "val" if train_conf["is_overfit"] else "train"
     image_set_val = "test" if train_conf["is_overfit"] else "val"
@@ -195,12 +197,16 @@ def train(model_conf, train_conf, data_conf):
 
     while True:
 
-        tensorboard_callback.on_epoch_begin(epoch, logs={'lr': scheduler.get_last_lr()[0]})
+        tensorboard_callback.on_epoch_begin(
+            epoch, logs={"lr": scheduler.get_last_lr()[0]}
+        )
 
         loss_dict = {}
         for i, data in enumerate(batch_generator_train):
 
-            tensorboard_callback.on_batch_begin(i, logs={'lr': scheduler.get_last_lr()[0]})
+            tensorboard_callback.on_batch_begin(
+                i, logs={"lr": scheduler.get_last_lr()[0]}
+            )
 
             input_data, gt_data = data
             input_data = input_data.to(device).contiguous()
@@ -217,7 +223,7 @@ def train(model_conf, train_conf, data_conf):
             curr_lr = scheduler.get_last_lr()[0]
             print(f"Epoch {epoch}, batch {i}, loss={loss:.3f}, lr={curr_lr}")
 
-            tensorboard_callback.on_batch_end(i, logs={'loss': loss})
+            tensorboard_callback.on_batch_end(i, logs={"loss": loss})
 
         if calculate_epoch_loss:
 
@@ -233,13 +239,18 @@ def train(model_conf, train_conf, data_conf):
             train_loss_history.append(train_validation_loss)
             val_loss_history.append(val_validation_loss)
 
-            tensorboard_callback.on_epoch_end(epoch, logs={
-                'train_loss': train_validation_loss,
-                'val_loss': val_validation_loss,
-                'lr': last_lr
-            })
+            tensorboard_callback.on_epoch_end(
+                epoch,
+                logs={
+                    "train_loss": train_validation_loss,
+                    "val_loss": val_validation_loss,
+                    "lr": last_lr,
+                },
+            )
 
-        if criteria_satisfied(train_validation_loss if calculate_epoch_loss else loss, epoch):
+        if criteria_satisfied(
+            train_validation_loss if calculate_epoch_loss else loss, epoch
+        ):
             break
 
         check_loss_value = train_validation_loss if calculate_epoch_loss else loss
@@ -248,7 +259,6 @@ def train(model_conf, train_conf, data_conf):
         epoch += 1
 
     tensorboard_callback.on_train_end()
-
 
     save_model(
         model,
