@@ -27,5 +27,4 @@ def load_model(
             weights_only=True,
         )
     )
-    model.eval()
     return model
