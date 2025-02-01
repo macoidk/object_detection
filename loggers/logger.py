@@ -1,7 +1,7 @@
+import logging
 import os
 import sys
 import time
-import logging
 
 LOGGER_NAME = "object_detection"
 LOG_DIR = "../logs"
@@ -14,10 +14,10 @@ logger.setLevel(logging.INFO)
 
 log_file = os.path.join(
     LOG_DIR,
-    f"{script_name}_{time.strftime('%Y-%m-%d_%H:%M:%S.log', time.localtime(time.time()))}"
+    f"{script_name}_{time.strftime('%Y-%m-%d_%H:%M:%S.log', time.localtime(time.time()))}",
 )
 
-formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s')
+formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
 
 fh = logging.FileHandler(log_file)
 fh.setLevel(logging.INFO)
@@ -28,4 +28,3 @@ sh = logging.StreamHandler(sys.stdout)
 sh.setLevel(logging.WARNING)
 sh.setFormatter(formatter)
 logger.addHandler(sh)
-
