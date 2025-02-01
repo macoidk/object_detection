@@ -17,7 +17,6 @@ python dataset_voc2coco.py /path/to/input/voc/Annotations
 """
 
 import argparse
-import datetime
 import json
 import logging
 import os
@@ -27,14 +26,9 @@ from typing import Dict, List
 import defusedxml.ElementTree as ET
 from tqdm import tqdm
 
-logging.basicConfig(
-    filename=f"../logs/dataset_voc2coco_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log",
-    format="%(asctime)s,%(msecs)03d %(name)s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
-)
+from loggers.logger import LOGGER_NAME
 
-logger = logging.getLogger(__name__)
+SCRIPT_NAME = "dataset_voc2coco"
 
 ALLOWED_EXTENSIONS = [".jpg", ".png", ".jpeg", ".JPG", ".PNG", ".JPEG"]
 
@@ -351,6 +345,8 @@ def main() -> bool:
 
 
 if __name__ == "__main__":
+    logger = logging.getLogger(f"{LOGGER_NAME}.{SCRIPT_NAME}")
+
     logger.info(f"Started transformation of dataset from VOC to COCO format")
     with_issues = False
     try:
