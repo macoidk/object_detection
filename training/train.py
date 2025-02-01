@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -6,6 +7,7 @@ import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
 
+from callbacks.tensorboard_callback import TensorboardCallback
 from data.dataset import Dataset
 from models.centernet import ModelBuilder
 from training.encoder import CenternetEncoder
@@ -23,6 +25,25 @@ def criteria_builder(stop_loss, stop_epoch):
         return False
 
     return criteria_satisfied
+
+
+def log_stats(tensorboard_writer, epoch, lr, losses: dict):
+    train_validation_loss = losses["validation"]["train"]
+    val_validation_loss = losses["validation"]["val"]
+    # Write to Tensorboard
+    tensorboard_writer.add_scalar("Train/loss", train_validation_loss, epoch)
+    tensorboard_writer.add_scalar("Val/loss", val_validation_loss, epoch)
+    tensorboard_writer.add_scalar("Train/lr", lr, epoch)
+
+    # Verbose
+    print("= = = = = = = = = =")
+    print(
+        (
+            f"Epoch {epoch} train loss = {train_validation_loss},"
+            f"val loss = {val_validation_loss}"
+        )
+    )
+    print("= = = = = = = = = =")
 
 
 def save_model(model, weights_path: str = None, **kwargs):
@@ -51,13 +72,13 @@ def main(config_path: str = None):
     train(model_conf, train_conf, data_conf)
 
 
-def calculate_loss(model, data, batch_size=32, num_workers=0):
+def calculate_validation_loss(model, data, batch_size=32, num_workers=0):
     batch_generator = torch.utils.data.DataLoader(
         data, num_workers=num_workers, batch_size=batch_size, shuffle=False
     )
     loss = 0.0
     count = 0
-    with torch.no_grad() as ng:
+    with torch.no_grad():
         for i, data in enumerate(batch_generator):
             input_data, gt_data = data
             input_data = input_data.to(device).contiguous()
@@ -74,6 +95,18 @@ def calculate_loss(model, data, batch_size=32, num_workers=0):
 
 
 def train(model_conf, train_conf, data_conf):
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    tensorboard_callback = TensorboardCallback(log_dir="runs")
+
+    tensorboard_callback.on_train_begin(
+        {
+            "model_config": str(model_conf),
+            "train_config": str(train_conf),
+            "data_config": str(data_conf),
+        }
+    )
+
     image_set_train = "val" if train_conf["is_overfit"] else "train"
     image_set_val = "test" if train_conf["is_overfit"] else "val"
     print(f"Selected training image_set: {image_set_train}")
@@ -108,6 +141,7 @@ def train(model_conf, train_conf, data_conf):
     train_data = Dataset(
         dataset=dataset_train, transformation=transform, encoder=encoder
     )
+
     tag = "train"
     batch_size = train_conf["batch_size"]
     train_subset_len = train_conf.get("subset_len")
@@ -148,19 +182,32 @@ def train(model_conf, train_conf, data_conf):
     model.train(True)
 
     batch_generator_train = torch.utils.data.DataLoader(
-        train_data, num_workers=num_workers, batch_size=batch_size, shuffle=False
+        train_data,
+        num_workers=num_workers,
+        batch_size=batch_size,
+        shuffle=False,
     )
 
     epoch = 1
 
-    train_loss = []
-    val_loss = []
+    train_loss_history = []
+    val_loss_history = []
 
     calculate_epoch_loss = train_conf.get("calculate_epoch_loss")
 
     while True:
+
+        tensorboard_callback.on_epoch_begin(
+            epoch, logs={"lr": scheduler.get_last_lr()[0]}
+        )
+
         loss_dict = {}
         for i, data in enumerate(batch_generator_train):
+
+            tensorboard_callback.on_batch_begin(
+                i, logs={"lr": scheduler.get_last_lr()[0]}
+            )
+
             input_data, gt_data = data
             input_data = input_data.to(device).contiguous()
 
@@ -168,7 +215,7 @@ def train(model_conf, train_conf, data_conf):
             gt_data.requires_grad = False
 
             loss_dict = model(input_data, gt=gt_data)
-            optimizer.zero_grad()  # compute gradient and do optimize step
+            optimizer.zero_grad()
             loss_dict["loss"].backward()
 
             optimizer.step()
@@ -176,24 +223,42 @@ def train(model_conf, train_conf, data_conf):
             curr_lr = scheduler.get_last_lr()[0]
             print(f"Epoch {epoch}, batch {i}, loss={loss:.3f}, lr={curr_lr}")
 
-        if calculate_epoch_loss:
-            train_loss.append(
-                calculate_loss(model, train_data, batch_size, num_workers)
-            )
-            val_loss.append(calculate_loss(model, val_data, batch_size, num_workers))
-            print(f"= = = = = = = = = =")
-            print(
-                f"Epoch {epoch} train loss = {train_loss[-1]}, val loss = {val_loss[-1]}"
-            )
-            print(f"= = = = = = = = = =")
+            tensorboard_callback.on_batch_end(i, logs={"loss": loss})
 
-        if criteria_satisfied(loss, epoch):
+        if calculate_epoch_loss:
+
+            tensorboard_callback.on_val_begin()
+
+            last_lr = scheduler.get_last_lr()[0]
+            train_validation_loss = calculate_validation_loss(
+                model, train_data, batch_size, num_workers
+            )
+            val_validation_loss = calculate_validation_loss(
+                model, val_data, batch_size, num_workers
+            )
+            train_loss_history.append(train_validation_loss)
+            val_loss_history.append(val_validation_loss)
+
+            tensorboard_callback.on_epoch_end(
+                epoch,
+                logs={
+                    "train_loss": train_validation_loss,
+                    "val_loss": val_validation_loss,
+                    "lr": last_lr,
+                },
+            )
+
+        if criteria_satisfied(
+            train_validation_loss if calculate_epoch_loss else loss, epoch
+        ):
             break
 
-        check_loss_value = train_loss[-1] if calculate_epoch_loss else loss
+        check_loss_value = train_validation_loss if calculate_epoch_loss else loss
 
         scheduler.step(check_loss_value)
         epoch += 1
+
+    tensorboard_callback.on_train_end()
 
     save_model(
         model,
@@ -202,9 +267,14 @@ def train(model_conf, train_conf, data_conf):
         backbone=model_conf["backbone"]["name"],
     )
 
-    loss_df = pd.DataFrame({"train_loss": train_loss, "val_loss": val_loss})
-    loss_df.to_csv("losses.csv")
+    loss_df = pd.DataFrame(
+        {
+            "train_loss": train_loss_history,
+            "val_loss": val_loss_history,
+        }
+    )
+    loss_df.to_csv(f"losses_{timestamp}.csv")
 
 
 if __name__ == "__main__":
-    main()
+    main("config_example_quick_train_with_epoch_loss.json")

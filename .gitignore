@@ -3,6 +3,6 @@ COCO/
 __pycache__/
 .idea/
 models/checkpoints/*.pt
-runs
-training/losses*
-
+PASCAL_VOC/
+runs/
+/training/losses*

@@ -15,7 +15,7 @@
     }
   },
   "train": {
-    "is_overfit": false,
+    "is_overfit": true,
     "lr": 5e-2,
     "batch_size": 32,
     "subset_len": 128,
