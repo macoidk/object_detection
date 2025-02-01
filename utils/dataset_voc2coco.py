@@ -78,7 +78,7 @@ def get_class2id(classes: List[str]) -> Dict[str, int]:
     return dict(zip(classes, classes_ids))
 
 
-def get_ann_files(ann_ids_dir: str) -> (bool, Dict):
+def get_ann_files(ann_ids_dir: str) -> tuple[bool, Dict]:
     with_issues = False
     ann_paths = {}
     for ann_ids_filename in os.listdir(ann_ids_dir):
@@ -190,7 +190,7 @@ def convert_xmls_to_coco(
     label2id: Dict[str, int],
     output_jsonpath: str,
     min_area: int,
-) -> (bool, Dict[str, object]):
+) -> tuple[bool, Dict[str, object]]:
     with_issues = False
 
     output_json_dict = {
