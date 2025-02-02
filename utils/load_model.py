@@ -9,7 +9,7 @@ def load_model(
     device: torch.device,
     model_type: Type[nn.Module],
     checkpoint_path: str = None,
-    alpha: float = 0.25,
+    **kwargs,
 ) -> nn.Module:
     """
     Loads a PyTorch model from a checkpoint file and moves it to the specified device.
@@ -19,7 +19,7 @@ def load_model(
         model_type (Type[nn.Module]): The class of the model to be instantiated.
         checkpoint_path (str, optional): Path to the model checkpoint file. Defaults to
             "../models/checkpoints/pretrained_weights.pt" if not provided.
-        alpha (float, optional): A scaling parameter passed to the model's constructor. Defaults to 0.25.
+        kwargs: Additional keyword arguments to pass to the model constructor.
 
     Returns:
         nn.Module: The loaded model instance.
@@ -35,7 +35,7 @@ def load_model(
     if not os.path.exists(checkpoint_path):
         raise FileNotFoundError(f"Checkpoint file not found: {checkpoint_path}")
 
-    model = model_type(filters_size=[128, 64, 32], alpha=alpha).to(device)
+    model = model_type(filters_size=[128, 64, 32], **kwargs).to(device)
     model.load_state_dict(
         torch.load(
             checkpoint_path,
